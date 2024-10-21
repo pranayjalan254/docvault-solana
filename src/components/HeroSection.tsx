@@ -1,125 +1,87 @@
-import React, { useRef } from "react";
-import * as THREE from "three";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, useGLTF } from "@react-three/drei";
-import { motion, useScroll, useTransform } from "framer-motion";
+import React from "react";
+import { motion } from "framer-motion";
 import styled from "styled-components";
 
-const HeroContainer = styled.section`
-  height: 100vh;
+const HeroWrapper = styled.section`
+  height: 100vh; /* Full viewport height */
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  padding: 0 80px; /* Left and right padding for better alignment */
-  background-color: #0e122a; /* Optional background */
+  text-align: center;
+  position: relative; /* Allow positioning of children */
+  z-index: 1; /* Bring content above the video */
 `;
 
-const Content = styled.div`
-  max-width: 600px;
-`;
-
-const Title = styled(motion.h1)`
+const Title = styled.h1`
   font-size: 64px;
   margin-bottom: 20px;
-  color: white;
+  color: #fff; /* White text */
 `;
 
-const Description = styled(motion.p)`
-  font-size: 20px;
+const Subtitle = styled.p`
+  font-size: 24px;
   margin-bottom: 40px;
-  color: white;
+  color: #ddd; /* Light grey text */
 `;
 
 const Button = styled(motion.button)`
-  padding: 10px 20px;
+  padding: 15px 30px;
   font-size: 18px;
-  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #00d1ff, #006fbb);
   border: none;
-  background-color: #90caf9;
-  color: white;
   border-radius: 5px;
-  transition: background 0.3s ease, transform 0.3s ease;
+  cursor: pointer;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0px 4px 15px rgba(0, 209, 255, 0.5);
 
   &:hover {
-    background-color: #1e90ff;
-    transform: scale(1.1);
+    background: linear-gradient(135deg, #00b5e2, #005f99);
+    box-shadow: 0px 6px 20px rgba(0, 209, 255, 0.8);
+    transform: translateY(-5px); /* Lift effect */
+  }
+
+  &:active {
+    transform: translateY(0); /* Pressed effect */
   }
 `;
 
-// VaultModel component with scroll-based opening animation
-function VaultModel() {
-  const { scene, animations } = useGLTF("/vault.glb"); // Load vault model
-  const group = useRef<any>(); // Reference for the 3D vault
-  const mixer = useRef<THREE.AnimationMixer | null>(null); // Animation mixer for animations
-  const { scrollYProgress } = useScroll(); // Use framer-motion's scroll hook
+const containerVariants = {
+  hidden: { opacity: 0, y: -50 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 1, staggerChildren: 0.3 },
+  },
+};
 
-  // Adjust rotation to face front and scale the vault
-  const rotation = useTransform(scrollYProgress, [0, 0.5], [0, Math.PI / 2]); // Vault rotation
-  const positionY = useTransform(scrollYProgress, [0, 0.5], [0, -2]); // Vault moving down on open
-
-  // Initialize animation mixer for controlling vault animations
-  if (!mixer.current && animations && animations.length > 0) {
-    mixer.current = new THREE.AnimationMixer(scene);
-    animations.forEach((clip) => mixer.current?.clipAction(clip).play());
-  }
-
-  useFrame((_state, delta) => {
-    if (mixer.current) mixer.current.update(delta); // Update animations
-  });
-
+const HeroSection: React.FC = () => {
   return (
-    <motion.group
-      ref={group}
-      style={{ rotateY: rotation, y: positionY }} // Applying scroll-based animations
-      rotation={[0, 0, 0]} // Set the initial rotation to face front
-    >
-      <primitive object={scene} scale={2} /> {/* Adjusted scale */}
-    </motion.group>
-  );
-}
+    <HeroWrapper>
+      {/* Title and Subtitle with auto-render on scroll */}
+      <motion.div
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, amount: 0.3 }} /* Auto-render animations */
+        variants={containerVariants}
+      >
+        <Title>Welcome to DocVault</Title>
+        <Subtitle>Secure. Verified. Decentralized Credentials.</Subtitle>
+      </motion.div>
 
-export const HeroSection: React.FC = () => {
-  const handleScrollToNextSection = () => {
-    window.scrollTo({
-      top: window.innerHeight, // Scroll to the next section
-      behavior: "smooth",
-    });
-  };
-
-  return (
-    <>
-      <HeroContainer>
-        <Content>
-          <Title
-            initial={{ opacity: 0, y: -100 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 1 }}
-          >
-            Secure Your Documents
-          </Title>
-          <Description
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 1 }}
-          >
-            With DocVault, your credentials are safe, secure, and easy to access
-            anywhere, anytime.
-          </Description>
-          <Button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleScrollToNextSection}
-          >
-            Get Started
-          </Button>
-        </Content>
-        <Canvas>
-          <ambientLight intensity={0.5} />
-          <directionalLight position={[0, 5, 5]} intensity={1} />
-          <VaultModel /> {/* Vault 3D model with scroll-triggered animation */}
-          <OrbitControls enableZoom={false} />
-        </Canvas>
-      </HeroContainer>
-    </>
+      {/* Get Started Button with hover effects */}
+      <Button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 1 }}
+      >
+        Get Started
+      </Button>
+    </HeroWrapper>
   );
 };
+
+export default HeroSection;

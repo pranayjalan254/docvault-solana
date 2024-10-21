@@ -1,15 +1,25 @@
 import { createGlobalStyle } from "styled-components";
 
 export const GlobalStyles = createGlobalStyle`
-  body {
+  * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    background: linear-gradient(135deg, #0B0C1B, #0E122A);
-    font-family: 'Poppins', sans-serif;
+  }
+
+  body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+    color: #fff;
+    scroll-behavior: smooth;
+  }
+
+  h1, h2, h3 {
     color: #fff;
   }
-  * {
-    scroll-behavior: smooth;
+
+  a {
+    text-decoration: none;
+    color: #fff;
   }
 `;
