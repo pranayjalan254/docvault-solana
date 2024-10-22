@@ -8,6 +8,7 @@ const NavbarWrapper = styled.nav`
   justify-content: space-between;
   padding: 20px;
   background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 5px rgba(173, 216, 230, 0.5); /* Light blue (LightSkyBlue) */
   position: sticky;
   top: 0;
   z-index: 100;
@@ -32,7 +33,7 @@ const NavLink = styled.li`
   gap: 8px;
 
   &:hover {
-    color: #00d1ff; /* Add a hover effect */
+    color: #9c27b0;
   }
 `;
 

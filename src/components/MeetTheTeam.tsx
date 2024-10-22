@@ -1,11 +1,11 @@
 import React, { useRef } from "react";
 import { motion, useInView } from "framer-motion";
 import styled from "styled-components";
-import { FaGithub, FaLinkedin, FaTwitter } from "react-icons/fa"; // Importing icons
+import { FaGithub, FaLinkedin, FaTwitter } from "react-icons/fa";
 
 const TeamWrapper = styled.section`
   padding: 100px 0;
-  background: rgba(255, 255, 255, 0.1);
+  background: #0d0d0d;
   text-align: center;
 `;
 
@@ -13,6 +13,7 @@ const Heading = styled.h2`
   font-size: 48px;
   margin-bottom: 60px;
   color: #fff;
+  font-weight: 400;
 `;
 
 const TeamGrid = styled.div`
@@ -31,7 +32,6 @@ const Card = styled(motion.div)`
   box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.3);
   cursor: pointer;
   transition: transform 0.3s ease;
-
   &:hover {
     transform: translateY(-10px) scale(1.05);
   }
@@ -49,6 +49,7 @@ const Name = styled.h3`
   margin-bottom: 10px;
   font-size: 22px;
   color: #fff;
+  font-weight: 300;
 `;
 
 const Position = styled.p`

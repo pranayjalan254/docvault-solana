@@ -9,6 +9,7 @@ const FooterWrapper = styled.footer`
 
 const FooterText = styled.p`
   font-size: 14px;
+  color: #fff;
 `;
 
 const Footer: React.FC = () => {

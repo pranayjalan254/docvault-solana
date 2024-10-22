@@ -5,13 +5,14 @@ import styled from "styled-components";
 const SectionWrapper = styled.section`
   padding: 100px 0;
   text-align: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: #0d0d0d;
 `;
 
 const Heading = styled.h2`
   font-size: 48px;
-  margin-bottom: 40px;
+  margin-bottom: 50px;
   color: #fff;
+  font-weight: 400;
 `;
 
 const CardsWrapper = styled.div`
@@ -27,11 +28,11 @@ const Card = styled(motion.div)`
   border-radius: 10px;
   width: 300px;
   padding: 30px;
-  box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.5);
+  box-shadow: 0px 4px 30px rgba(255, 255, 255, 0.1);
   color: #fff;
   text-align: center;
   cursor: pointer;
-  transition: transform 0.3s ease;
+  transition: transform 0.1s ease;
 
   &:hover {
     transform: scale(1.05);
@@ -47,6 +48,7 @@ const IconWrapper = styled.div`
 const CardHeading = styled.h3`
   font-size: 24px;
   margin-bottom: 15px;
+  font-weight: 300;
 `;
 
 const CardText = styled.p`
@@ -100,8 +102,7 @@ const WhyDocVault: React.FC = () => {
             <IconWrapper>✅</IconWrapper>
             <CardHeading>Verifiable Credentials</CardHeading>
             <CardText>
-              Verifiable and authentic credentials issued directly by trusted
-              institutions and securely stored for access anytime.
+              Empower your credentials with peer-to-peer verification
             </CardText>
           </Card>
 

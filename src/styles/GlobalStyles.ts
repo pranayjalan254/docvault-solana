@@ -9,17 +9,9 @@ export const GlobalStyles = createGlobalStyle`
 
   body {
     font-family: 'Arial', sans-serif;
-    background: linear-gradient(135deg, #000428 0%, #004e92 100%);
-    color: #fff;
+    background: #000;
     scroll-behavior: smooth;
   }
 
-  h1, h2, h3 {
-    color: #fff;
-  }
 
-  a {
-    text-decoration: none;
-    color: #fff;
-  }
 `;
