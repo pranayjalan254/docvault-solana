@@ -1,29 +1,25 @@
-import { FC, useMemo, useState } from "react";
-import {
-  ConnectionProvider,
-  WalletProvider,
-} from "@solana/wallet-adapter-react";
-import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
-import { UnsafeBurnerWalletAdapter } from "@solana/wallet-adapter-wallets";
-import {
-  WalletModalProvider,
-  WalletMultiButton,
-} from "@solana/wallet-adapter-react-ui";
-import { clusterApiUrl } from "@solana/web3.js";
+import { FC, useEffect, useState } from "react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
+import { useNavigate } from "react-router-dom";
 import "./Auth.css";
-import "@solana/wallet-adapter-react-ui/styles.css";
+import { useWallet } from "@solana/wallet-adapter-react";
 
 export const AuthPage: FC = () => {
-  const [showModal, setShowModal] = useState(false); // State for modal
-  const network = WalletAdapterNetwork.Devnet;
-  const endpoint = useMemo(() => clusterApiUrl(network), [network]);
-
-  const wallets = useMemo(() => [new UnsafeBurnerWalletAdapter()], [network]);
-
-  // Function to toggle modal visibility
+  const [showModal, setShowModal] = useState(false);
+  const { publicKey } = useWallet();
+  const navigate = useNavigate();
   const toggleModal = () => {
     setShowModal(!showModal);
   };
+  useEffect(() => {
+    const storedPublicKey = localStorage.getItem("publicKey");
+    if (storedPublicKey) {
+      navigate("/dashboard");
+    } else if (publicKey) {
+      localStorage.setItem("publicKey", publicKey.toString());
+      navigate("/dashboard");
+    }
+  }, [publicKey, navigate]);
 
   return (
     <div className="auth-page">
@@ -32,17 +28,9 @@ export const AuthPage: FC = () => {
         <p className="auth-description">
           Connect your Solana wallet to create your digital profile.
         </p>
-
-        <ConnectionProvider endpoint={endpoint}>
-          <WalletProvider wallets={wallets} autoConnect>
-            <WalletModalProvider>
-              <div className="wallet-buttons">
-                <WalletMultiButton className="wallet-button-connect" />
-              </div>
-            </WalletModalProvider>
-          </WalletProvider>
-        </ConnectionProvider>
-
+        <div className="wallet-buttons">
+          <WalletMultiButton className="wallet-button-connect" />
+        </div>
         <p className="no-wallet">
           Don't have a wallet?{" "}
           <span onClick={toggleModal} className="create-wallet-link">
@@ -92,3 +80,5 @@ export const AuthPage: FC = () => {
     </div>
   );
 };
+
+export default AuthPage;
