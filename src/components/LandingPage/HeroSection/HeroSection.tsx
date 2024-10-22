@@ -1,6 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
-import "./HeroSection.css"; // Import the CSS file
+import "./HeroSection.css";
+import { useNavigate } from "react-router-dom";
 
 const containerVariants = {
   hidden: { opacity: 0, y: -50 },
@@ -12,6 +13,11 @@ const containerVariants = {
 };
 
 const HeroSection: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate("/auth");
+  };
   return (
     <section className="hero-wrapper">
       <motion.div
@@ -32,6 +38,7 @@ const HeroSection: React.FC = () => {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5, duration: 1 }}
+        onClick={handleGetStarted}
       >
         Get Started
       </motion.button>
