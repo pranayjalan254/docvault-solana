@@ -8,15 +8,13 @@ export const AuthPage: FC = () => {
   const [showModal, setShowModal] = useState(false);
   const { publicKey } = useWallet();
   const navigate = useNavigate();
+
   const toggleModal = () => {
-    setShowModal(!showModal);
+    setShowModal((prev) => !prev);
   };
+
   useEffect(() => {
-    const storedPublicKey = localStorage.getItem("publicKey");
-    if (storedPublicKey) {
-      navigate("/dashboard");
-    } else if (publicKey) {
-      localStorage.setItem("publicKey", publicKey.toString());
+    if (publicKey) {
       navigate("/dashboard");
     }
   }, [publicKey, navigate]);

@@ -3,7 +3,7 @@ import { GlobalStyles } from "./styles/GlobalStyles";
 import LandingPage from "./components/LandingPage/LandingPage";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { AuthPage } from "./components/Authentication/Auth";
-import Dashboard from "./components/Dashboard/Dashboard";
+import Dashboard from "./components/Dashboard/Dashboard/Dashboard";
 import ProtectedRoute from "../ProtectedRoute";
 import {
   WalletProvider,

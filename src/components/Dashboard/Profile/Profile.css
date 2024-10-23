@@ -1,0 +1,16 @@
+.profile-content {
+  padding: 20px;
+  color: white;
+}
+
+.profile-content h2 {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.credentials-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-around;
+}
