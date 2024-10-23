@@ -6,7 +6,8 @@ const EmploymentHistoryForm: React.FC = () => {
   const [jobTitle, setJobTitle] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [proof, setProof] = useState("");
+
+  const [proof, setProof] = useState<File | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,12 +61,10 @@ const EmploymentHistoryForm: React.FC = () => {
       </div>
 
       <div className="form-group">
-        <label>Proof (e.g., Reference Letter)</label>
+        <label>Upload Proofs (Offer Letter, etc)</label>
         <input
-          type="text"
-          value={proof}
-          onChange={(e) => setProof(e.target.value)}
-          placeholder="Enter proof link or upload file"
+          type="file"
+          onChange={(e) => setProof(e.target.files?.[0] || null)}
         />
       </div>
     </CredentialFormBase>

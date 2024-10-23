@@ -15,7 +15,7 @@ const DegreeForm: React.FC = () => {
 
   return (
     <CredentialFormBase
-      title="Upload Your Degree Credential"
+      title="Upload Your College Degree"
       onSubmit={handleSubmit}
     >
       <div className="form-group">
@@ -49,7 +49,7 @@ const DegreeForm: React.FC = () => {
       </div>
 
       <div className="form-group">
-        <label>Upload Degree Proof (PDF/Image)</label>
+        <label>Upload Proofs (Transcripts/ID)</label>
         <input
           type="file"
           onChange={(e) => setProof(e.target.files?.[0] || null)}

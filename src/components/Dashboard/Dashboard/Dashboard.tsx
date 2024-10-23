@@ -4,6 +4,7 @@ import Navbar from "../Navbar/Navbar";
 import Sidebar from "../Sidebar/Sidebar";
 import Profile from "../Profile/Profile";
 import UploadCredentialForms from "../UploadCredentials/UploadCredentialForms";
+import Staking from "../Staking/Staking";
 
 const Dashboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<string>("Profile");
@@ -36,9 +37,7 @@ const Dashboard: React.FC = () => {
           {activeSection === "Certification" && (
             <UploadCredentialForms credentialType="Certification" />
           )}
-          {activeSection === "Staking" && (
-            <div className="staking-section">Staking Section Coming Soon!</div>
-          )}
+          {activeSection === "Staking" && <Staking />}
         </div>
       </div>
     </div>

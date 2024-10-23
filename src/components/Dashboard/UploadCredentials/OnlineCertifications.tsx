@@ -50,12 +50,12 @@ const CertificationForm: React.FC = () => {
       </div>
 
       <div className="form-group">
-        <label>Proof (e.g., Certificate Link or Upload)</label>
+        <label>Proof (e.g., Certificate Link)</label>
         <input
           type="text"
           value={proof}
           onChange={(e) => setProof(e.target.value)}
-          placeholder="Enter proof link or upload file"
+          placeholder="Enter proof link"
         />
       </div>
     </CredentialFormBase>

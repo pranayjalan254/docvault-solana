@@ -5,17 +5,15 @@ const SkillForm: React.FC = () => {
   const [skillName, setSkillName] = useState("");
   const [proficiency, setProficiency] = useState("");
   const [proof, setProof] = useState("");
+  const [files, setFiles] = useState<File | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ skillName, proficiency, proof });
+    console.log({ skillName, proficiency, proof, files });
   };
 
   return (
-    <CredentialFormBase
-      title="Upload Your Skill Credentials"
-      onSubmit={handleSubmit}
-    >
+    <CredentialFormBase title="Flaunt your skills" onSubmit={handleSubmit}>
       <div className="form-group">
         <label>Skill Name</label>
         <input
@@ -42,12 +40,19 @@ const SkillForm: React.FC = () => {
       </div>
 
       <div className="form-group">
-        <label>Proof (e.g., Certificate/Portfolio Link)</label>
+        <label>Proof (e.g. Project/Portfolio Link)</label>
         <input
           type="text"
           value={proof}
           onChange={(e) => setProof(e.target.value)}
           placeholder="Enter proof link or file"
+        />
+      </div>
+      <div className="form-group">
+        <label>Upload Files if Any</label>
+        <input
+          type="file"
+          onChange={(e) => setFiles(e.target.files?.[0] || null)}
         />
       </div>
     </CredentialFormBase>
