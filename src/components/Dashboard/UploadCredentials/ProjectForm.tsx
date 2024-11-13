@@ -34,6 +34,7 @@ const ProjectForm: React.FC = () => {
           placeholder="Enter your project name"
           value={projectName}
           onChange={(e) => setProjectName(e.target.value)}
+          required
         />
       </div>
 
@@ -45,6 +46,7 @@ const ProjectForm: React.FC = () => {
           value={projectDetails}
           onChange={(e) => setProjectDetails(e.target.value)}
           rows={5}
+          required
         />
       </div>
 
@@ -56,6 +58,7 @@ const ProjectForm: React.FC = () => {
           placeholder="Enter collaborators"
           value={collaborators}
           onChange={(e) => setCollaborators(e.target.value)}
+          required
         />
       </div>
 
@@ -68,6 +71,7 @@ const ProjectForm: React.FC = () => {
             className="form-input date-picker"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
+            required
           />
         </div>
         <div className="date-input">

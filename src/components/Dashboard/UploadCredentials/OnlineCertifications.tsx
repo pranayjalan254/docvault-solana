@@ -6,10 +6,15 @@ const CertificationForm: React.FC = () => {
   const [issuer, setIssuer] = useState("");
   const [issueDate, setIssueDate] = useState("");
   const [proof, setProof] = useState("");
+  const [proofFile, setProofFile] = useState<File | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ certificationName, issuer, issueDate, proof });
+    if (!proof && !proofFile) {
+      alert("Please provide either a proof link or upload a certificate file");
+      return;
+    }
+    console.log({ certificationName, issuer, issueDate, proof, proofFile });
   };
 
   return (
@@ -55,7 +60,16 @@ const CertificationForm: React.FC = () => {
           type="text"
           value={proof}
           onChange={(e) => setProof(e.target.value)}
-          placeholder="Enter proof link"
+          placeholder="Enter proof link or upload certificate below"
+          required={!proofFile}
+        />
+      </div>
+      <div className="form-group">
+        <label>Upload Certificate</label>
+        <input
+          type="file"
+          onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+          required={!proof}
         />
       </div>
     </CredentialFormBase>
