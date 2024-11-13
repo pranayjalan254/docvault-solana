@@ -3,12 +3,12 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { IDL } from "./idl";
+import { IDL } from "./idl1";
 import CredentialFormBase from "./CredentialFormBase";
 
 // Replace with your program's ID
 const PROGRAM_ID = new PublicKey(
-  "GM3nxnbKANvVN6mrTFEAyB5uojjBW1cXWciXeWCZpxa2"
+  "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
 const connection = new Connection("https://api.devnet.solana.com");
 
@@ -17,6 +17,7 @@ const DegreeForm: React.FC = () => {
   const [collegeName, setCollegeName] = useState("");
   const [passoutYear, setPassoutYear] = useState("");
   const [proof, setProof] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
 
@@ -51,15 +52,12 @@ const DegreeForm: React.FC = () => {
     }
 
     try {
+      setIsSubmitting(true);
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
 
       await program.methods
-        .submitCredential(
-          degreeName,
-          collegeName,
-          new BN(parseInt(passoutYear))
-        )
+        .submitDegree(degreeName, collegeName, new BN(parseInt(passoutYear)))
         .accounts({
           credential: credentialAccount.publicKey,
           user: publicKey,
@@ -84,6 +82,7 @@ const DegreeForm: React.FC = () => {
         description: "Failed to submit credential. Please try again.",
       });
     } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -115,7 +114,7 @@ const DegreeForm: React.FC = () => {
       <div className="form-group">
         <label>Passout Year</label>
         <input
-          type="text"
+          type="number"
           placeholder="Enter your passout year"
           value={passoutYear}
           onChange={(e) => setPassoutYear(e.target.value)}
@@ -128,6 +127,13 @@ const DegreeForm: React.FC = () => {
           onChange={(e) => setProof(e.target.files?.[0] || null)}
         />
       </div>
+      <button
+        type="submit"
+        disabled={isSubmitting || !publicKey}
+        className="submit-btn"
+      >
+        {isSubmitting ? "Submitting..." : "Submit Degree"}
+      </button>
     </CredentialFormBase>
   );
 };

@@ -1,5 +1,15 @@
 import React, { useState } from "react";
 import CredentialFormBase from "./CredentialFormBase";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
+import { notification } from "antd";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { IDL } from "./idl1";
+
+const PROGRAM_ID = new PublicKey(
+  "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
+);
+const connection = new Connection("https://api.devnet.solana.com");
 
 const EmploymentHistoryForm: React.FC = () => {
   const [companyName, setCompanyName] = useState("");
@@ -7,16 +17,91 @@ const EmploymentHistoryForm: React.FC = () => {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [currentlyWorking, setCurrentlyWorking] = useState(false);
-  const [projectFiles, setProjectFiles] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log({
-      companyName,
-      startDate,
-      endDate: currentlyWorking ? "Currently Working" : endDate,
-      projectFiles,
+  const { publicKey, signTransaction, signAllTransactions } = useWallet();
+
+  const getProgram = () => {
+    if (!publicKey || !signTransaction || !signAllTransactions) {
+      throw new Error("Wallet not connected");
+    }
+
+    const anchorWallet = {
+      publicKey,
+      signTransaction,
+      signAllTransactions,
+    };
+
+    const provider = new AnchorProvider(connection, anchorWallet, {
+      preflightCommitment: "processed",
     });
+
+    const program = new Program(IDL as any, PROGRAM_ID, provider);
+    return program;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!publicKey) {
+      notification.error({
+        message: "Wallet not connected",
+        description: "Please connect your wallet to submit credentials",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      const program = getProgram();
+      const credentialAccount = web3.Keypair.generate();
+
+      // Convert dates to Unix timestamps
+      const startTimestamp = new Date(startDate).getTime() / 1000;
+
+      // Only convert endDate if it exists and not currently working
+      const endTimestamp = currentlyWorking
+        ? null
+        : endDate
+        ? new Date(endDate).getTime() / 1000
+        : null;
+
+      await program.methods
+        .submitEmployment(
+          companyName,
+          jobTitle,
+          new BN(startTimestamp),
+          endTimestamp ? new BN(endTimestamp) : null,
+          currentlyWorking
+        )
+        .accounts({
+          employment: credentialAccount.publicKey,
+          user: publicKey,
+          systemProgram: web3.SystemProgram.programId,
+        })
+        .signers([credentialAccount])
+        .rpc();
+
+      notification.success({
+        message: "Success",
+        description: "Employment history submitted successfully!",
+      });
+
+      // Reset form
+      setCompanyName("");
+      setJobTitle("");
+      setStartDate("");
+      setEndDate("");
+      setCurrentlyWorking(false);
+    } catch (error) {
+      console.error("Error submitting credential:", error);
+      notification.error({
+        message: "Error",
+        description: "Failed to submit credential. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -30,6 +115,7 @@ const EmploymentHistoryForm: React.FC = () => {
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
           required
+          disabled={isSubmitting}
         />
       </div>
 
@@ -42,10 +128,10 @@ const EmploymentHistoryForm: React.FC = () => {
           value={jobTitle}
           onChange={(e) => setJobTitle(e.target.value)}
           required
+          disabled={isSubmitting}
         />
       </div>
 
-      {/* Start Date and End Date Section */}
       <div className="project-form-group timeline-group">
         <div className="date-input">
           <label className="form-label">Start Date</label>
@@ -55,6 +141,7 @@ const EmploymentHistoryForm: React.FC = () => {
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
             required
+            disabled={isSubmitting}
           />
         </div>
 
@@ -65,33 +152,37 @@ const EmploymentHistoryForm: React.FC = () => {
             className="form-input date-picker"
             value={endDate}
             onChange={(e) => setEndDate(e.target.value)}
-            disabled={currentlyWorking}
+            disabled={currentlyWorking || isSubmitting}
+            required={!currentlyWorking}
           />
         </div>
       </div>
 
-      {/* Checkbox for Currently Working */}
       <div className="project-form-group checkbox-group">
         <label className="form-checkbox">
           <input
             type="checkbox"
             className="checkbox-input"
             checked={currentlyWorking}
-            onChange={(e) => setCurrentlyWorking(e.target.checked)}
+            onChange={(e) => {
+              setCurrentlyWorking(e.target.checked);
+              if (e.target.checked) {
+                setEndDate("");
+              }
+            }}
+            disabled={isSubmitting}
           />
           Currently Working
         </label>
       </div>
 
-      <div className="project-form-group">
-        <label className="form-label">Proofs (Employment/Offer Letter)</label>
-        <input
-          type="file"
-          className="form-input file-input"
-          onChange={(e) => setProjectFiles(e.target.files?.[0] || null)}
-          required
-        />
-      </div>
+      <button
+        type="submit"
+        disabled={isSubmitting || !publicKey}
+        className="submit-btn"
+      >
+        {isSubmitting ? "Submitting..." : "Submit Employment History"}
+      </button>
     </CredentialFormBase>
   );
 };

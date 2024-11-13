@@ -1,79 +1,163 @@
 import React, { useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
+import { notification } from "antd";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { IDL } from "./idl1";
 import CredentialFormBase from "./CredentialFormBase";
 
-const CertificationForm: React.FC = () => {
+const PROGRAM_ID = new PublicKey(
+  "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
+);
+const connection = new Connection("https://api.devnet.solana.com");
+
+const OnlineCertificationsForm: React.FC = () => {
   const [certificationName, setCertificationName] = useState("");
   const [issuer, setIssuer] = useState("");
-  const [issueDate, setIssueDate] = useState("");
-  const [proof, setProof] = useState("");
-  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [dateOfIssue, setDateOfIssue] = useState("");
+  const [proofLink, setProofLink] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const wallet = useWallet();
+  const { publicKey } = wallet;
+
+  const getProgram = () => {
+    if (
+      !wallet.publicKey ||
+      !wallet.signTransaction ||
+      !wallet.signAllTransactions
+    ) {
+      throw new Error("Wallet not connected");
+    }
+
+    const provider = new AnchorProvider(connection, wallet as any, {
+      preflightCommitment: "processed",
+    });
+
+    return new Program(IDL as any, PROGRAM_ID, provider);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!proof && !proofFile) {
-      alert("Please provide either a proof link or upload a certificate file");
+
+    if (!publicKey) {
+      notification.error({
+        message: "Wallet not connected",
+        description: "Please connect your wallet to submit credentials",
+      });
       return;
     }
-    console.log({ certificationName, issuer, issueDate, proof, proofFile });
+
+    try {
+      setIsSubmitting(true);
+      const program = getProgram();
+      const certificateKeypair = web3.Keypair.generate();
+
+      // Convert date to Unix timestamp
+      const issueTimestamp = new Date(dateOfIssue).getTime() / 1000;
+
+      const tx = await program.methods
+        .submitCertificate(
+          certificationName,
+          issuer,
+          new BN(issueTimestamp),
+          proofLink ? proofLink : null
+        )
+        .accounts({
+          certificate: certificateKeypair.publicKey,
+          user: publicKey,
+          systemProgram: web3.SystemProgram.programId,
+        })
+        .signers([certificateKeypair])
+        .rpc();
+
+      console.log("Transaction signature:", tx);
+
+      notification.success({
+        message: "Success",
+        description: "Certificate submitted successfully!",
+      });
+
+      // Reset form
+      setCertificationName("");
+      setIssuer("");
+      setDateOfIssue("");
+      setProofLink("");
+    } catch (error) {
+      console.error("Error submitting certificate:", error);
+      notification.error({
+        message: "Error",
+        description: "Failed to submit certificate. Please try again.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <CredentialFormBase
-      title="Upload Your Certification"
-      onSubmit={handleSubmit}
-    >
-      <div className="form-group">
-        <label>Certification Name</label>
+    <CredentialFormBase title="Online Certifications" onSubmit={handleSubmit}>
+      <div className="project-form-group">
+        <label className="form-label">Certification Name</label>
         <input
           type="text"
+          className="form-input"
+          placeholder="Enter certification name"
           value={certificationName}
           onChange={(e) => setCertificationName(e.target.value)}
-          placeholder="Enter the certification name"
           required
+          disabled={isSubmitting}
         />
       </div>
 
-      <div className="form-group">
-        <label>Issuer (e.g., Authority/Institution)</label>
+      <div className="project-form-group">
+        <label className="form-label">Issuing Organization</label>
         <input
           type="text"
+          className="form-input"
+          placeholder="Enter issuer name (e.g., Coursera, Udacity)"
           value={issuer}
           onChange={(e) => setIssuer(e.target.value)}
-          placeholder="Enter the issuing authority"
           required
+          disabled={isSubmitting}
         />
       </div>
 
-      <div className="form-group">
-        <label>Date of Issue</label>
+      <div className="project-form-group">
+        <label className="form-label">Date of Issue</label>
         <input
           type="date"
-          value={issueDate}
-          onChange={(e) => setIssueDate(e.target.value)}
+          className="form-input date-picker"
+          value={dateOfIssue}
+          onChange={(e) => setDateOfIssue(e.target.value)}
           required
+          disabled={isSubmitting}
         />
       </div>
 
-      <div className="form-group">
-        <label>Proof (e.g., Certificate Link)</label>
+      <div className="project-form-group">
+        <label className="form-label">Verification Link (Optional)</label>
         <input
-          type="text"
-          value={proof}
-          onChange={(e) => setProof(e.target.value)}
-          placeholder="Enter proof link or upload certificate below"
-          required={!proofFile}
+          type="url"
+          className="form-input"
+          placeholder="Enter certificate verification link"
+          value={proofLink}
+          onChange={(e) => setProofLink(e.target.value)}
+          disabled={isSubmitting}
         />
+        <small className="text-muted">
+          Link to verify your certificate (if available)
+        </small>
       </div>
-      <div className="form-group">
-        <label>Upload Certificate</label>
-        <input
-          type="file"
-          onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-          required={!proof}
-        />
-      </div>
+
+      <button
+        type="submit"
+        disabled={isSubmitting || !publicKey}
+        className="submit-btn"
+      >
+        {isSubmitting ? "Submitting..." : "Submit Certificate"}
+      </button>
     </CredentialFormBase>
   );
 };
 
-export default CertificationForm;
+export default OnlineCertificationsForm;
