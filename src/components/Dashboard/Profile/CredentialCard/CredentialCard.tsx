@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import CredentialModal from "./CredentialModal";
+import CredentialModal from "../CredentialModal/CredentialModal";
 import "./CredentialCard.css";
 
 interface CredentialCardProps {
@@ -7,7 +7,6 @@ interface CredentialCardProps {
   title: string;
   dateIssued: string;
   status: string;
-  // Add all possible credential details
   details?: {
     university?: string;
     cgpa?: string;

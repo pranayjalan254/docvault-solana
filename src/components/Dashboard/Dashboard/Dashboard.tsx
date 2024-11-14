@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import "./Dashboard.css";
 import Navbar from "../Navbar/Navbar";
 import Sidebar from "../Sidebar/Sidebar";
-import Profile from "../Profile/Profile";
+import Profile from "../Profile/ProfileCard/Profile";
 import UploadCredentialForms from "../UploadCredentials/UploadCredentialForms";
 import Staking from "../Staking/Staking";
 

@@ -1,6 +1,6 @@
 import React from "react";
 import "./Profile.css";
-import CredentialCard from "./CredentialCard";
+import CredentialCard from "../CredentialCard/CredentialCard";
 
 const Profile: React.FC = () => {
   const dummyCredentials = [
