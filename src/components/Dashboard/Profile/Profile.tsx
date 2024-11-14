@@ -9,12 +9,21 @@ const Profile: React.FC = () => {
       title: "Bachelor's in Computer Science",
       dateIssued: "01/09/2023",
       status: "Verified",
+      details: {
+        university: "Example University",
+        cgpa: "3.8",
+      },
     },
     {
       type: "Project",
       title: "Blockchain Development",
       dateIssued: "01/07/2023",
       status: "Verified",
+      details: {
+        projectUrl: "https://github.com/example/project",
+        description:
+          "Developed a decentralized application using Solidity and React",
+      },
     },
     {
       type: "Skill",
