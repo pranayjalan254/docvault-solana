@@ -3,18 +3,28 @@ import "./Dropdown.css";
 
 interface DropdownProps {
   setActiveSection: (section: string) => void;
+  isOpen: boolean;
 }
 
-const Dropdown: React.FC<DropdownProps> = ({ setActiveSection }) => {
+const Dropdown: React.FC<DropdownProps> = ({ setActiveSection, isOpen }) => {
+  if (!isOpen) return null;
+
+  const handleItemClick = (e: React.MouseEvent, section: string) => {
+    e.stopPropagation();
+    setActiveSection(section);
+  };
+
   return (
     <ul className="dropdown-menu">
-      <li onClick={() => setActiveSection("Degree")}>Degree</li>
-      <li onClick={() => setActiveSection("Project")}>Project</li>
-      <li onClick={() => setActiveSection("Skill")}>Skill</li>
-      <li onClick={() => setActiveSection("Employment History")}>
+      <li onClick={(e) => handleItemClick(e, "Degree")}>Degree</li>
+      <li onClick={(e) => handleItemClick(e, "Project")}>Project</li>
+      <li onClick={(e) => handleItemClick(e, "Skill")}>Skill</li>
+      <li onClick={(e) => handleItemClick(e, "Employment History")}>
         Employment History
       </li>
-      <li onClick={() => setActiveSection("Certification")}>Certification</li>
+      <li onClick={(e) => handleItemClick(e, "Certification")}>
+        Certification
+      </li>
     </ul>
   );
 };

@@ -13,7 +13,11 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const handleDropdownToggle = () => {
+  const handleSectionClick = (section: string) => {
+    setActiveSection(section);
+  };
+
+  const handleUploadCredentialsClick = () => {
     setIsDropdownOpen(!isDropdownOpen);
   };
 
@@ -28,11 +32,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         </li>
 
         <li
-          onClick={handleDropdownToggle}
+          onClick={handleUploadCredentialsClick}
           className={activeSection === "Upload Credentials" ? "active" : ""}
         >
           Upload Credentials
-          {isDropdownOpen && <Dropdown setActiveSection={setActiveSection} />}
+          <Dropdown
+            setActiveSection={handleSectionClick}
+            isOpen={isDropdownOpen}
+          />
         </li>
 
         <li
