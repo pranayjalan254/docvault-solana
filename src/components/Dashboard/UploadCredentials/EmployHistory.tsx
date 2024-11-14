@@ -18,6 +18,7 @@ const EmploymentHistoryForm: React.FC = () => {
   const [endDate, setEndDate] = useState("");
   const [currentlyWorking, setCurrentlyWorking] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [proof, setProof] = useState<File | null>(null);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
 
@@ -93,6 +94,7 @@ const EmploymentHistoryForm: React.FC = () => {
       setStartDate("");
       setEndDate("");
       setCurrentlyWorking(false);
+      setProof(null);
     } catch (error) {
       console.error("Error submitting credential:", error);
       notification.error({
@@ -175,7 +177,13 @@ const EmploymentHistoryForm: React.FC = () => {
           Currently Working
         </label>
       </div>
-
+      <div className="form-group">
+        <label>Upload Proofs (Offer Letter/ID)</label>
+        <input
+          type="file"
+          onChange={(e) => setProof(e.target.files?.[0] || null)}
+        />
+      </div>
       <button
         type="submit"
         disabled={isSubmitting || !publicKey}

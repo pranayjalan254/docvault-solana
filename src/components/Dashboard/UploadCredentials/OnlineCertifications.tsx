@@ -17,6 +17,7 @@ const OnlineCertificationsForm: React.FC = () => {
   const [dateOfIssue, setDateOfIssue] = useState("");
   const [proofLink, setProofLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [proof, setProof] = useState<File | null>(null);
 
   const wallet = useWallet();
   const { publicKey } = wallet;
@@ -143,12 +144,17 @@ const OnlineCertificationsForm: React.FC = () => {
           value={proofLink}
           onChange={(e) => setProofLink(e.target.value)}
           disabled={isSubmitting}
+          required={!proof}
         />
-        <small className="text-muted">
-          Link to verify your certificate (if available)
-        </small>
       </div>
-
+      <div className="form-group">
+        <label>Upload Certificates</label>
+        <input
+          type="file"
+          onChange={(e) => setProof(e.target.files?.[0] || null)}
+        />
+        required={!proofLink}
+      </div>
       <button
         type="submit"
         disabled={isSubmitting || !publicKey}

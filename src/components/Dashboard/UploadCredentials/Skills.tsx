@@ -19,6 +19,7 @@ const SkillForm: React.FC = () => {
   const [proficiency, setProficiency] = useState<ProficiencyLevel | "">("");
   const [proofLink, setProofLink] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [proof, setProof] = useState<File | null>(null);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
 
@@ -134,8 +135,16 @@ const SkillForm: React.FC = () => {
           value={proofLink}
           onChange={(e) => setProofLink(e.target.value)}
           placeholder="Enter proof link (e.g., GitHub, Portfolio)"
-          required
+          required={!proof}
           disabled={isSubmitting}
+        />
+      </div>
+      <div className="form-group">
+        <label>Upload Proofs (Optional)</label>
+        <input
+          type="file"
+          onChange={(e) => setProof(e.target.files?.[0] || null)}
+          required={!proofLink}
         />
       </div>
 

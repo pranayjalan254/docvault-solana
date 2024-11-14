@@ -212,11 +212,18 @@ const ProjectForm: React.FC = () => {
           placeholder="Enter project link (e.g., GitHub, Live Demo)"
           value={link}
           onChange={(e) => setLink(e.target.value)}
-          required
           disabled={isSubmitting}
+          required={!projectFiles}
         />
       </div>
-
+      <div className="form-group">
+        <label>Upload Proofs (PDFs/Screenshots)</label>
+        <input
+          type="file"
+          onChange={(e) => setProjectFiles(e.target.files?.[0] || null)}
+          required={!link}
+        />
+      </div>
       <button
         type="submit"
         disabled={isSubmitting || !publicKey}

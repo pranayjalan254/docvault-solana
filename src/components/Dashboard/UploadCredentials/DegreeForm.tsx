@@ -6,7 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./idl1";
 import CredentialFormBase from "./CredentialFormBase";
 
-// Replace with your program's ID
+
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
