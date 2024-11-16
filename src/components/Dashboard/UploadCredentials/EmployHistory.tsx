@@ -21,7 +21,7 @@ const EmploymentHistoryForm: React.FC = () => {
   const [proof, setProof] = useState<File | null>(null);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
-
+  console.log(proof);
   const getProgram = () => {
     if (!publicKey || !signTransaction || !signAllTransactions) {
       throw new Error("Wallet not connected");

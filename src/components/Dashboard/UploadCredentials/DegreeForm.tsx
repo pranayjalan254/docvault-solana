@@ -6,7 +6,6 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./idl1";
 import CredentialFormBase from "./CredentialFormBase";
 
-
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
@@ -20,7 +19,7 @@ const DegreeForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
-
+  console.log(proof);
   const getProgram = () => {
     if (!publicKey || !signTransaction || !signAllTransactions) {
       throw new Error("Wallet not connected");
@@ -75,6 +74,7 @@ const DegreeForm: React.FC = () => {
       setDegreeName("");
       setCollegeName("");
       setPassoutYear("");
+      setProof(null);
     } catch (error) {
       console.error("Error submitting credential:", error);
       notification.error({
