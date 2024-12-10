@@ -16,7 +16,6 @@ interface CredentialCardProps {
     company?: string;
     position?: string;
     certificationProvider?: string;
-    // Add other possible fields
   };
 }
 

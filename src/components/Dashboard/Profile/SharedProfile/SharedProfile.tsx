@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { Connection } from "@solana/web3.js";
+import { useParams } from "react-router-dom";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { AnchorProvider } from "@project-serum/anchor";
-import "./Profile.css";
+
 import CredentialCard from "../CredentialCard/CredentialCard";
-import { QRCodeCanvas } from "qrcode.react";
+import "../ProfileCard/Profile.css";
 import {
   fetchAllCredentials,
   Credential,
@@ -12,27 +12,20 @@ import {
 
 const CACHE_DURATION = 60000;
 
-const Profile: React.FC = () => {
-  const { publicKey, wallet } = useWallet();
+const SharedProfile: React.FC = () => {
+  const { publicKeyStr } = useParams();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [cachedCredentials, setCachedCredentials] = useState<Credential[]>([]);
 
-  const getShareableLink = () => {
-    if (!publicKey) return "";
-    return `${window.location.origin}/profile/${publicKey.toString()}`;
-  };
-
   useEffect(() => {
     const fetchCredentials = async () => {
-      if (!publicKey || !wallet) {
+      if (!publicKeyStr) {
         setLoading(false);
         return;
       }
-
-      // Check cache
       const now = Date.now();
       if (
         now - lastFetchTime < CACHE_DURATION &&
@@ -48,7 +41,8 @@ const Profile: React.FC = () => {
           "https://api.devnet.solana.com",
           "confirmed"
         );
-        const provider = new AnchorProvider(connection, wallet as any, {
+        const publicKey = new PublicKey(publicKeyStr);
+        const provider = new AnchorProvider(connection, window as any, {
           commitment: "confirmed",
         });
 
@@ -71,7 +65,7 @@ const Profile: React.FC = () => {
     };
 
     fetchCredentials();
-  }, [publicKey, wallet, lastFetchTime, cachedCredentials]);
+  }, [publicKeyStr, lastFetchTime, cachedCredentials]);
 
   if (loading) {
     return (
@@ -85,7 +79,7 @@ const Profile: React.FC = () => {
 
   return (
     <div className="profile-content fade-in">
-      <h2>Your Uploaded Credentials</h2>
+      <h2>Shared Profile</h2>
       <div className="credentials-container">
         {credentials.length > 0 ? (
           credentials.map((credential, index) => (
@@ -99,14 +93,11 @@ const Profile: React.FC = () => {
             />
           ))
         ) : (
-          <p>No credentials found. Start by uploading your first credential!</p>
+          <p>No credentials found for this profile.</p>
         )}
-      </div>
-      <div className="qr-code">
-        <QRCodeCanvas value={getShareableLink()} />
       </div>
     </div>
   );
 };
 
-export default Profile;
+export default SharedProfile;

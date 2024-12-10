@@ -17,6 +17,7 @@ import {
 import { clusterApiUrl } from "@solana/web3.js";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import "@solana/wallet-adapter-react-ui/styles.css";
+import SharedProfile from "./components/Dashboard/Profile/SharedProfile/SharedProfile";
 
 const App: React.FC = () => {
   const network = WalletAdapterNetwork.Devnet;
@@ -44,6 +45,10 @@ const App: React.FC = () => {
                       <Dashboard />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/profile/:publicKeyStr"
+                  element={<SharedProfile />}
                 />
               </Routes>
             </Router>
