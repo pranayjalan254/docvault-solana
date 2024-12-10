@@ -4,20 +4,20 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { AnchorProvider } from "@project-serum/anchor";
 import CredentialCard from "../CredentialCard/CredentialCard";
 import "../ProfileCard/Profile.css";
-import {
-  fetchAllCredentials,
-  Credential,
-} from "../../../../utils/credentialUtils";
+import { fetchAllCredentials } from "../../../../utils/credentialUtils";
+import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
 
-const CACHE_DURATION = 60000;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
 
 const SharedProfile: React.FC = () => {
   const { publicKeyStr } = useParams();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
-  const [cachedCredentials, setCachedCredentials] = useState<Credential[]>([]);
+  const [, setLastFetchTime] = useState<number>(0);
+  const [, setCachedCredentials] = useState<Credential[]>([]);
 
   const CREDENTIAL_SECTIONS = [
     { type: "Degree", title: "Educational Credentials" },
@@ -28,19 +28,22 @@ const SharedProfile: React.FC = () => {
   ];
 
   useEffect(() => {
-    const fetchCredentials = async () => {
+    const fetchCredentialsWithRetry = async (retryCount = 0) => {
       if (!publicKeyStr) {
         setLoading(false);
         return;
       }
-      const now = Date.now();
-      if (
-        now - lastFetchTime < CACHE_DURATION &&
-        cachedCredentials.length > 0
-      ) {
-        setCredentials(cachedCredentials);
-        setLoading(false);
-        return;
+
+      // Check localStorage cache first
+      const cachedData = localStorage.getItem(`credentials-${publicKeyStr}`);
+      if (cachedData) {
+        const { credentials: cached, timestamp } = JSON.parse(cachedData);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          setCredentials(cached);
+          setCachedCredentials(cached);
+          setLoading(false);
+          return;
+        }
       }
 
       try {
@@ -58,12 +61,27 @@ const SharedProfile: React.FC = () => {
           provider
         );
 
+        // Store in localStorage
+        localStorage.setItem(
+          `credentials-${publicKeyStr}`,
+          JSON.stringify({
+            credentials: formattedCredentials,
+            timestamp: Date.now(),
+          })
+        );
+
         setError(null);
         setCredentials(formattedCredentials);
         setCachedCredentials(formattedCredentials);
         setLastFetchTime(Date.now());
       } catch (error) {
         console.error("Error fetching credentials:", error);
+        if (retryCount < MAX_RETRIES) {
+          setTimeout(() => {
+            fetchCredentialsWithRetry(retryCount + 1);
+          }, RETRY_DELAY);
+          return;
+        }
         setError("Failed to load credentials. Please try refreshing the page.");
         setCredentials([]);
       } finally {
@@ -71,8 +89,8 @@ const SharedProfile: React.FC = () => {
       }
     };
 
-    fetchCredentials();
-  }, [publicKeyStr, lastFetchTime, cachedCredentials]);
+    fetchCredentialsWithRetry();
+  }, [publicKeyStr]);
 
   if (loading) {
     return (
@@ -98,7 +116,12 @@ const SharedProfile: React.FC = () => {
               {sectionCredentials.length > 0 ? (
                 <div className="credentials-grid">
                   {sectionCredentials.map((credential, index) => (
-                    <CredentialCard key={index} {...credential} />
+                    <CredentialCard
+                      key={index}
+                      {...credential}
+                      isOpen={false}
+                      onClose={() => {}}
+                    />
                   ))}
                 </div>
               ) : (

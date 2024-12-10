@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, useState } from "react";
 import "./CredentialModal.css";
 
-interface CredentialModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface CredentialModalProps {
+  isOpen?: boolean;
+  onClose?: () => void;
   type: string;
   title: string;
   dateIssued: string;
@@ -11,7 +11,7 @@ interface CredentialModalProps {
   buttonPosition?: { x: number; y: number };
   details?: {
     university?: string;
-    cgpa?: string;
+    passoutYear?: string;
     projectUrl?: string;
     description?: string;
     skillLevel?: string;
@@ -60,7 +60,7 @@ const CredentialModal: React.FC<CredentialModalProps> = ({
               <strong>University:</strong> {details?.university}
             </p>
             <p>
-              <strong>CGPA:</strong> {details?.cgpa}
+              <strong>Passout Year:</strong> {details?.passoutYear}
             </p>
           </>
         );

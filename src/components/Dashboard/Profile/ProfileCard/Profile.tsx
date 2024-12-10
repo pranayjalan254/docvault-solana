@@ -5,21 +5,21 @@ import { AnchorProvider } from "@project-serum/anchor";
 import "./Profile.css";
 import CredentialCard from "../CredentialCard/CredentialCard";
 import { QRCodeCanvas } from "qrcode.react";
-import {
-  fetchAllCredentials,
-  Credential,
-} from "../../../../utils/credentialUtils";
+import { fetchAllCredentials } from "../../../../utils/credentialUtils";
 import { toast } from "react-hot-toast";
+import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
 
-const CACHE_DURATION = 60000;
+const CACHE_DURATION = 5 * 60 * 1000;
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
 
 const Profile: React.FC = () => {
   const { publicKey, wallet } = useWallet();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [lastFetchTime, setLastFetchTime] = useState<number>(0);
-  const [cachedCredentials, setCachedCredentials] = useState<Credential[]>([]);
+  const [, setLastFetchTime] = useState<number>(0);
+  const [, setCachedCredentials] = useState<Credential[]>([]);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copyButtonText, setCopyButtonText] = useState("Copy");
 
@@ -42,21 +42,24 @@ const Profile: React.FC = () => {
   };
 
   useEffect(() => {
-    const fetchCredentials = async () => {
+    const fetchCredentialsWithRetry = async (retryCount = 0) => {
       if (!publicKey || !wallet) {
         setLoading(false);
         return;
       }
 
-      // Check cache
-      const now = Date.now();
-      if (
-        now - lastFetchTime < CACHE_DURATION &&
-        cachedCredentials.length > 0
-      ) {
-        setCredentials(cachedCredentials);
-        setLoading(false);
-        return;
+      // Check localStorage cache first
+      const cachedData = localStorage.getItem(
+        `credentials-${publicKey.toString()}`
+      );
+      if (cachedData) {
+        const { credentials: cached, timestamp } = JSON.parse(cachedData);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          setCredentials(cached);
+          setCachedCredentials(cached);
+          setLoading(false);
+          return;
+        }
       }
 
       try {
@@ -73,12 +76,27 @@ const Profile: React.FC = () => {
           provider
         );
 
+        // Store in localStorage
+        localStorage.setItem(
+          `credentials-${publicKey.toString()}`,
+          JSON.stringify({
+            credentials: formattedCredentials,
+            timestamp: Date.now(),
+          })
+        );
+
         setError(null);
         setCredentials(formattedCredentials);
         setCachedCredentials(formattedCredentials);
         setLastFetchTime(Date.now());
       } catch (error) {
         console.error("Error fetching credentials:", error);
+        if (retryCount < MAX_RETRIES) {
+          setTimeout(() => {
+            fetchCredentialsWithRetry(retryCount + 1);
+          }, RETRY_DELAY);
+          return;
+        }
         setError("Failed to load credentials. Please try refreshing the page.");
         setCredentials([]);
       } finally {
@@ -86,8 +104,8 @@ const Profile: React.FC = () => {
       }
     };
 
-    fetchCredentials();
-  }, [publicKey, wallet, lastFetchTime, cachedCredentials]);
+    fetchCredentialsWithRetry();
+  }, [publicKey, wallet]);
 
   const CREDENTIAL_SECTIONS = [
     { type: "Degree", title: "Educational Credentials" },
@@ -130,7 +148,12 @@ const Profile: React.FC = () => {
               {sectionCredentials.length > 0 ? (
                 <div className="credentials-grid">
                   {sectionCredentials.map((credential, index) => (
-                    <CredentialCard key={index} {...credential} />
+                    <CredentialCard
+                      key={index}
+                      {...credential}
+                      isOpen={false}
+                      onClose={() => {}}
+                    />
                   ))}
                 </div>
               ) : (

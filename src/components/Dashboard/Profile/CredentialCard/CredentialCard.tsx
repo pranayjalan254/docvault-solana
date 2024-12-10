@@ -1,25 +1,9 @@
 import React, { useState } from "react";
 import CredentialModal from "../CredentialModal/CredentialModal";
 import "./CredentialCard.css";
+import { CredentialModalProps } from "../CredentialModal/CredentialModal";
 
-interface CredentialCardProps {
-  type: string;
-  title: string;
-  dateIssued: string;
-  status: string;
-  details?: {
-    university?: string;
-    cgpa?: string;
-    projectUrl?: string;
-    description?: string;
-    skillLevel?: string;
-    company?: string;
-    position?: string;
-    certificationProvider?: string;
-  };
-}
-
-const CredentialCard: React.FC<CredentialCardProps> = ({
+const CredentialCard: React.FC<CredentialModalProps> = ({
   type,
   title,
   dateIssued,
@@ -87,7 +71,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
               </p>
             )}
             <p className="detail-item">
-              <span className="detail-label">Date:</span>
+              <span className="detail-label">Date Issued:</span>
               <span className="detail-value">{dateIssued}</span>
             </p>
           </div>

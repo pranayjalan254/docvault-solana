@@ -3,23 +3,7 @@ import { Program, AnchorProvider } from "@project-serum/anchor";
 import { IDL } from "../components/Dashboard/UploadCredentials/idl1";
 
 const programId = new PublicKey("AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1");
-
-export interface Credential {
-  type: string;
-  title: string;
-  dateIssued: string;
-  status: string;
-  details?: {
-    university?: string;
-    cgpa?: string;
-    projectUrl?: string;
-    description?: string;
-    skillLevel?: string;
-    company?: string;
-    position?: string;
-    certificationProvider?: string;
-  };
-}
+import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 
 const getStatusString = (status: any) => {
   if (status?.verified) return "Verified";
@@ -63,7 +47,7 @@ export const fetchAllCredentials = async (
       status: getStatusString(d.account.status),
       details: {
         university: d.account.collegeName,
-        cgpa: d.account.passoutYear?.toString() || "N/A",
+        passoutYear: d.account.passoutYear?.toString() || "N/A",
       },
     })),
     ...projects.map((p: any) => ({
