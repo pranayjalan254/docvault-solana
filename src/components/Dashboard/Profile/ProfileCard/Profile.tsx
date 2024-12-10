@@ -9,6 +9,7 @@ import {
   fetchAllCredentials,
   Credential,
 } from "../../../../utils/credentialUtils";
+import { toast } from "react-hot-toast";
 
 const CACHE_DURATION = 60000;
 
@@ -19,10 +20,25 @@ const Profile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [cachedCredentials, setCachedCredentials] = useState<Credential[]>([]);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copyButtonText, setCopyButtonText] = useState("Copy");
 
   const getShareableLink = () => {
     if (!publicKey) return "";
     return `${window.location.origin}/profile/${publicKey.toString()}`;
+  };
+
+  const copyToClipboard = async () => {
+    const link = getShareableLink();
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopyButtonText("Copied!");
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setCopyButtonText("Copy"), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+      toast.error("Failed to copy link");
+    }
   };
 
   useEffect(() => {
@@ -73,6 +89,14 @@ const Profile: React.FC = () => {
     fetchCredentials();
   }, [publicKey, wallet, lastFetchTime, cachedCredentials]);
 
+  const CREDENTIAL_SECTIONS = [
+    { type: "Degree", title: "Educational Credentials" },
+    { type: "Project", title: "Projects" },
+    { type: "Skill", title: "Skills" },
+    { type: "Employment History", title: "Employment History" },
+    { type: "Certification", title: "Certifications" },
+  ];
+
   if (loading) {
     return (
       <div className="profile-content fade-in">Loading credentials...</div>
@@ -85,26 +109,63 @@ const Profile: React.FC = () => {
 
   return (
     <div className="profile-content fade-in">
-      <h2>Your Uploaded Credentials</h2>
-      <div className="credentials-container">
-        {credentials.length > 0 ? (
-          credentials.map((credential, index) => (
-            <CredentialCard
-              key={index}
-              type={credential.type}
-              title={credential.title}
-              dateIssued={credential.dateIssued}
-              status={credential.status}
-              details={credential.details}
-            />
-          ))
-        ) : (
-          <p>No credentials found. Start by uploading your first credential!</p>
-        )}
+      <div className="profile-header">
+        <h2>Your Uploaded Credentials</h2>
+        <button
+          className="share-button"
+          onClick={() => setIsShareModalOpen(true)}
+        >
+          Share Profile
+        </button>
       </div>
-      <div className="qr-code">
-        <QRCodeCanvas value={getShareableLink()} />
+
+      <div className="credentials-sections">
+        {CREDENTIAL_SECTIONS.map(({ type, title }) => {
+          const sectionCredentials = credentials.filter(
+            (cred) => cred.type === type
+          );
+          return (
+            <section key={type} className="credential-section">
+              <h3>{title}</h3>
+              {sectionCredentials.length > 0 ? (
+                <div className="credentials-grid">
+                  {sectionCredentials.map((credential, index) => (
+                    <CredentialCard key={index} {...credential} />
+                  ))}
+                </div>
+              ) : (
+                <p className="no-credentials">
+                  No {title.toLowerCase()} available! Upload Now!
+                </p>
+              )}
+            </section>
+          );
+        })}
       </div>
+
+      {isShareModalOpen && (
+        <div className="share-modal" onClick={() => setIsShareModalOpen(false)}>
+          <div
+            className="share-modal-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Share Your Profile</h3>
+            <div className="qr-code">
+              <QRCodeCanvas value={getShareableLink()} size={200} />
+            </div>
+            <div className="share-link">
+              <input type="text" value={getShareableLink()} readOnly />
+              <button onClick={copyToClipboard}>{copyButtonText}</button>
+            </div>
+            <button
+              className="close-button"
+              onClick={() => setIsShareModalOpen(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

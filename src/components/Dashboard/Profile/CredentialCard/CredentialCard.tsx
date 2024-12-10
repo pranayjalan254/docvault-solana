@@ -27,35 +27,75 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   details,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [buttonPosition, setButtonPosition] = useState<
-    { x: number; y: number } | undefined
-  >();
 
-  const handleViewMore = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const viewportX = rect.left + rect.width / 2;
-    const viewportY = rect.top + rect.height / 2;
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "verified":
+        return "status-verified";
+      case "rejected":
+        return "status-rejected";
+      default:
+        return "status-pending";
+    }
+  };
 
-    // Calculate position as percentages of viewport
-    const posX = (viewportX / window.innerWidth) * 100;
-    const posY = (viewportY / window.innerHeight) * 100;
-
-    setButtonPosition({ x: posX, y: posY });
-    setIsModalOpen(true);
+  const getTypeIcon = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "degree":
+        return "Degree 🎓";
+      case "project":
+        return "Project 💻";
+      case "skill":
+        return "Skill ⚡";
+      case "employment history":
+        return "Employment History 💼";
+      case "certification":
+        return "Certification 📜";
+      default:
+        return "📄";
+    }
   };
 
   return (
     <>
-      <div className={`credential-card ${type.toLowerCase()}-card`}>
+      <div className="credential-card">
         <div className="card-header">
-          <span className="card-type">{type}</span>
+          <span className="card-icon">{getTypeIcon(type)}</span>
+          <span className={`status-badge ${getStatusColor(status)}`}>
+            {status}
+          </span>
         </div>
         <div className="card-content">
-          <h3>{title}</h3>
-          <p>Date Issued: {dateIssued}</p>
-          <p>Status: {status}</p>
-          <button className="view-more-btn" onClick={handleViewMore}>
-            View More
+          <h3 className="card-title">{title}</h3>
+          <div className="card-details">
+            {details?.university && (
+              <p className="detail-item">
+                <span className="detail-label">University:</span>
+                <span className="detail-value">{details.university}</span>
+              </p>
+            )}
+            {details?.company && (
+              <p className="detail-item">
+                <span className="detail-label">Company:</span>
+                <span className="detail-value">{details.company}</span>
+              </p>
+            )}
+            {details?.skillLevel && (
+              <p className="detail-item">
+                <span className="detail-label">Level:</span>
+                <span className="detail-value">{details.skillLevel}</span>
+              </p>
+            )}
+            <p className="detail-item">
+              <span className="detail-label">Date:</span>
+              <span className="detail-value">{dateIssued}</span>
+            </p>
+          </div>
+          <button
+            className="view-details-btn"
+            onClick={() => setIsModalOpen(true)}
+          >
+            View Details
           </button>
         </div>
       </div>
@@ -68,7 +108,6 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         dateIssued={dateIssued}
         status={status}
         details={details}
-        buttonPosition={buttonPosition}
       />
     </>
   );

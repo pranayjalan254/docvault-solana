@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { AnchorProvider } from "@project-serum/anchor";
-
 import CredentialCard from "../CredentialCard/CredentialCard";
 import "../ProfileCard/Profile.css";
 import {
@@ -19,6 +18,14 @@ const SharedProfile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<number>(0);
   const [cachedCredentials, setCachedCredentials] = useState<Credential[]>([]);
+
+  const CREDENTIAL_SECTIONS = [
+    { type: "Degree", title: "Educational Credentials" },
+    { type: "Project", title: "Projects" },
+    { type: "Skill", title: "Skills" },
+    { type: "Employment History", title: "Employment History" },
+    { type: "Certification", title: "Certifications" },
+  ];
 
   useEffect(() => {
     const fetchCredentials = async () => {
@@ -79,22 +86,29 @@ const SharedProfile: React.FC = () => {
 
   return (
     <div className="profile-content fade-in">
-      <h2>Shared Profile</h2>
-      <div className="credentials-container">
-        {credentials.length > 0 ? (
-          credentials.map((credential, index) => (
-            <CredentialCard
-              key={index}
-              type={credential.type}
-              title={credential.title}
-              dateIssued={credential.dateIssued}
-              status={credential.status}
-              details={credential.details}
-            />
-          ))
-        ) : (
-          <p>No credentials found for this profile.</p>
-        )}
+      <h2 className="profile-header">Shared Profile</h2>
+      <div className="credentials-sections">
+        {CREDENTIAL_SECTIONS.map(({ type, title }) => {
+          const sectionCredentials = credentials.filter(
+            (cred) => cred.type === type
+          );
+          return (
+            <section key={type} className="credential-section">
+              <h3>{title}</h3>
+              {sectionCredentials.length > 0 ? (
+                <div className="credentials-grid">
+                  {sectionCredentials.map((credential, index) => (
+                    <CredentialCard key={index} {...credential} />
+                  ))}
+                </div>
+              ) : (
+                <p className="no-credentials">
+                  No {title.toLowerCase()} available
+                </p>
+              )}
+            </section>
+          );
+        })}
       </div>
     </div>
   );
