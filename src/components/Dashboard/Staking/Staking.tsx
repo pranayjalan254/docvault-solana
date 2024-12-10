@@ -48,6 +48,10 @@ const Staking = () => {
 
   return (
     <div className="staking-container">
+      <div className="coming-soon-overlay">
+        <h1>Coming Soon</h1>
+        <p>The staking feature is currently under development.</p>
+      </div>
       <h1 className="staking-header">Staking Section</h1>
       <div className="staking-subtitle">
         Stake your tokens to verify unverified credentials and earn rewards.
