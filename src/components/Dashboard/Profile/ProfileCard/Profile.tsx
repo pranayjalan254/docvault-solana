@@ -8,6 +8,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { fetchAllCredentials } from "../../../../utils/credentialUtils";
 import { toast } from "react-hot-toast";
 import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
+import { encryptPublicKey } from "../../../../utils/encryptionUtils";
 
 const CACHE_DURATION = 5 * 60 * 1000;
 const MAX_RETRIES = 3;
@@ -22,15 +23,17 @@ const Profile: React.FC = () => {
   const [, setCachedCredentials] = useState<Credential[]>([]);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copyButtonText, setCopyButtonText] = useState("Copy");
+  const [shareableLink, setShareableLink] = useState<string>("");
 
-  const getShareableLink = () => {
+  const getShareableLink = async () => {
     if (!publicKey) return "";
-    return `${window.location.origin}/profile/${publicKey.toString()}`;
+    const encryptedKey = await encryptPublicKey(publicKey.toString());
+    return `${window.location.origin}/profile/${encryptedKey}`;
   };
 
   const copyToClipboard = async () => {
-    const link = getShareableLink();
     try {
+      const link = await getShareableLink();
       await navigator.clipboard.writeText(link);
       setCopyButtonText("Copied!");
       toast.success("Link copied to clipboard!");
@@ -40,6 +43,12 @@ const Profile: React.FC = () => {
       toast.error("Failed to copy link");
     }
   };
+
+  useEffect(() => {
+    if (isShareModalOpen && publicKey) {
+      getShareableLink().then(setShareableLink);
+    }
+  }, [isShareModalOpen, publicKey]);
 
   useEffect(() => {
     const fetchCredentialsWithRetry = async (retryCount = 0) => {
@@ -174,10 +183,10 @@ const Profile: React.FC = () => {
           >
             <h3>Share Your Profile</h3>
             <div className="qr-code">
-              <QRCodeCanvas value={getShareableLink()} size={200} />
+              <QRCodeCanvas value={shareableLink} size={200} />
             </div>
             <div className="share-link">
-              <input type="text" value={getShareableLink()} readOnly />
+              <input type="text" value={shareableLink} readOnly />
               <button onClick={copyToClipboard}>{copyButtonText}</button>
             </div>
             <button

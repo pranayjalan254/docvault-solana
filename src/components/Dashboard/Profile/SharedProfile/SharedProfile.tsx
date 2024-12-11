@@ -6,18 +6,17 @@ import CredentialCard from "../CredentialCard/CredentialCard";
 import "../ProfileCard/Profile.css";
 import { fetchAllCredentials } from "../../../../utils/credentialUtils";
 import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
+import { decryptPublicKey } from "../../../../utils/encryptionUtils";
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
 const SharedProfile: React.FC = () => {
-  const { publicKeyStr } = useParams();
+  const { publicKeyStr: encryptedPublicKey } = useParams();
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [, setLastFetchTime] = useState<number>(0);
-  const [, setCachedCredentials] = useState<Credential[]>([]);
 
   const CREDENTIAL_SECTIONS = [
     { type: "Degree", title: "Educational Credentials" },
@@ -29,51 +28,59 @@ const SharedProfile: React.FC = () => {
 
   useEffect(() => {
     const fetchCredentialsWithRetry = async (retryCount = 0) => {
-      if (!publicKeyStr) {
+      if (!encryptedPublicKey) {
         setLoading(false);
+        setError("No profile key provided");
         return;
       }
 
-      // Check localStorage cache first
-      const cachedData = localStorage.getItem(`credentials-${publicKeyStr}`);
-      if (cachedData) {
-        const { credentials: cached, timestamp } = JSON.parse(cachedData);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setCredentials(cached);
-          setCachedCredentials(cached);
-          setLoading(false);
-          return;
-        }
-      }
-
       try {
+        const decryptedPublicKey = await decryptPublicKey(encryptedPublicKey);
+        if (!decryptedPublicKey) {
+          throw new Error("Invalid profile link");
+        }
+        const cachedData = localStorage.getItem(
+          `credentials-${decryptedPublicKey}`
+        );
+        if (cachedData) {
+          const { credentials: cached, timestamp } = JSON.parse(cachedData);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            setCredentials(cached);
+            setLoading(false);
+            return;
+          }
+        }
+
         const connection = new Connection(
           "https://api.devnet.solana.com",
           "confirmed"
         );
-        const publicKey = new PublicKey(publicKeyStr);
-        const provider = new AnchorProvider(connection, window as any, {
-          commitment: "confirmed",
-        });
 
-        const formattedCredentials = await fetchAllCredentials(
-          publicKey,
-          provider
-        );
+        try {
+          const publicKey = new PublicKey(decryptedPublicKey);
+          const provider = new AnchorProvider(connection, window as any, {
+            commitment: "confirmed",
+          });
 
-        // Store in localStorage
-        localStorage.setItem(
-          `credentials-${publicKeyStr}`,
-          JSON.stringify({
-            credentials: formattedCredentials,
-            timestamp: Date.now(),
-          })
-        );
+          const formattedCredentials = await fetchAllCredentials(
+            publicKey,
+            provider
+          );
 
-        setError(null);
-        setCredentials(formattedCredentials);
-        setCachedCredentials(formattedCredentials);
-        setLastFetchTime(Date.now());
+          // Store in cache with decrypted key
+          localStorage.setItem(
+            `credentials-${decryptedPublicKey}`,
+            JSON.stringify({
+              credentials: formattedCredentials,
+              timestamp: Date.now(),
+            })
+          );
+
+          setCredentials(formattedCredentials);
+          setError(null);
+        } catch (e) {
+          throw new Error("Invalid public key format");
+        }
       } catch (error) {
         console.error("Error fetching credentials:", error);
         if (retryCount < MAX_RETRIES) {
@@ -82,7 +89,9 @@ const SharedProfile: React.FC = () => {
           }, RETRY_DELAY);
           return;
         }
-        setError("Failed to load credentials. Please try refreshing the page.");
+        setError(
+          error instanceof Error ? error.message : "Failed to load profile"
+        );
         setCredentials([]);
       } finally {
         setLoading(false);
@@ -90,7 +99,7 @@ const SharedProfile: React.FC = () => {
     };
 
     fetchCredentialsWithRetry();
-  }, [publicKeyStr]);
+  }, [encryptedPublicKey]);
 
   if (loading) {
     return (
