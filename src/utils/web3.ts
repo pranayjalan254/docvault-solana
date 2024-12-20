@@ -1,6 +1,6 @@
 import { Connection, clusterApiUrl, PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@project-serum/anchor";
-import { IDL } from "../components/Dashboard/UploadCredentials/idl1";
+import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 
 const PROGRAM_ID = new PublicKey("GM3nxnbKANvVN6mrTFEAyB5uojjBW1cXWciXeWpxa2");
 

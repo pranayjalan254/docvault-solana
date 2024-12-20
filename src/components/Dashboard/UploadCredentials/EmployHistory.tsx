@@ -4,7 +4,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { IDL } from "./idl1";
+import { IDL } from "./uploadidl";
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"

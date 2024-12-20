@@ -37,7 +37,7 @@ const Profile: React.FC = () => {
       await navigator.clipboard.writeText(link);
       setCopyButtonText("Copied!");
       toast.success("Link copied to clipboard!");
-      setTimeout(() => setCopyButtonText("Copy"), 2000);
+      setTimeout(() => setCopyButtonText("Copy"), 1000);
     } catch (err) {
       console.error("Failed to copy:", err);
       toast.error("Failed to copy link");

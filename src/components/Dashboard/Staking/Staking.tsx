@@ -1,82 +1,68 @@
+import React, { useEffect, useState } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { AnchorProvider } from "@project-serum/anchor";
+import { CredentialModalProps } from "../Profile/CredentialModal/CredentialModal";
+import { fetchAllUnverifiedCredentials } from "../../../utils/allCredentialUtils";
 import "./Staking.css";
+import { Connection } from "@solana/web3.js";
 
-const Staking = () => {
-  // Placeholder for the list of unverified credentials
-  const unverifiedCredentials = [
-    {
-      id: 1,
-      title: "Bachelor's Degree in Computer Science",
-      institution: "BITS Pilani",
-      description: "Issued in 2023 by the Department of Computer Science.",
-      stakeAmount: "10 SOL",
-      progress: 59,
-    },
-    {
-      id: 1,
-      title: "Bachelor's Degree in Computer Science",
-      institution: "BITS Pilani",
-      description: "Issued in 2023 by the Department of Computer Science.",
-      stakeAmount: "10 SOL",
-      progress: 50,
-    },
-    {
-      id: 1,
-      title: "Bachelor's Degree in Computer Science",
-      institution: "BITS Pilani",
-      description: "Issued in 2023 by the Department of Computer Science.",
-      stakeAmount: "10 SOL",
-      progress: 40,
-    },
-    {
-      id: 1,
-      title: "Bachelor's Degree in Computer Science",
-      institution: "BITS Pilani",
-      description: "Issued in 2023 by the Department of Computer Science.",
-      stakeAmount: "10 SOL",
-      progress: 10,
-    },
-    {
-      id: 2,
-      title: "Frontend Developer Certificate",
-      institution: "Coursera",
-      description: "Completed in July 2023.",
-      stakeAmount: "5 SOL",
-      progress: 75,
-    },
-    // Add more unverified credentials here
-  ];
+const Staking: React.FC = () => {
+  const [unverifiedCredentials, setUnverifiedCredentials] = useState<
+    CredentialModalProps[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const { connected } = useWallet();
+  const connection = new Connection(
+    "https://api.devnet.solana.com",
+    "confirmed"
+  );
+  const provider = new AnchorProvider(connection, window as any, {
+    commitment: "confirmed",
+  });
+
+  useEffect(() => {
+    const loadCredentials = async () => {
+      if (!connected || !provider) return;
+
+      try {
+        setLoading(true);
+        const credentials = await fetchAllUnverifiedCredentials(provider);
+        setUnverifiedCredentials(credentials);
+      } catch (error) {
+        console.error("Error loading unverified credentials:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCredentials();
+  }, [connected, provider]);
+
+  if (!connected) {
+    return (
+      <div>Please connect your wallet to view unverified credentials.</div>
+    );
+  }
+
+  if (loading) {
+    return <div>Loading unverified credentials...</div>;
+  }
 
   return (
     <div className="staking-container">
-      <div className="coming-soon-overlay">
-        <h1>Coming Soon</h1>
-        <p>The staking feature is currently under development.</p>
-      </div>
-      <h1 className="staking-header">Staking Section</h1>
-      <div className="staking-subtitle">
-        Stake your tokens to verify unverified credentials and earn rewards.
-      </div>
-      <div className="credential-list">
-        {unverifiedCredentials.map((credential) => (
-          <div key={credential.id} className="staking-card">
-            <h3 className="staking-title">{credential.title}</h3>
-            <p className="staking-institution">{credential.institution}</p>
-            <p className="staking-description">{credential.description}</p>
-            <div className="stake-info">
-              <p className="stake-amount">
-                Stake Amount: {credential.stakeAmount}
-              </p>
-              <button className="stake-button">Stake & Verify</button>
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{ width: `${credential.progress}%` }}
-              ></div>
-            </div>
-            <p className="progress-text">
-              Verification Progress: {credential.progress}%
+      <h2>Verify Credentials</h2>
+      <div className="credentials-grid">
+        {unverifiedCredentials.map((credential, index) => (
+          <div key={index} className="credential-card">
+            <h3>{credential.type}</h3>
+            <p>
+              <strong>Title:</strong> {credential.title}
             </p>
+            <p>
+              <strong>Date:</strong> {credential.dateIssued}
+            </p>
+
+            <button className="verify-button">Stake to Verify</button>
           </div>
         ))}
       </div>

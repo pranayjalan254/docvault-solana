@@ -140,7 +140,7 @@ const CredentialModal: React.FC<CredentialModalProps> = ({
           <strong>Date Issued:</strong> {dateIssued}
         </p>
         <p>
-          <strong>Status:</strong> {status}
+          <strong>Verification Status:</strong> {status}
         </p>
         <div className="credential-details">{renderDetails()}</div>
       </div>

@@ -113,7 +113,7 @@ const SharedProfile: React.FC = () => {
 
   return (
     <div className="profile-content fade-in">
-      <h2 className="profile-header">Shared Profile</h2>
+      <h2 className="profile-header">Profile</h2>
       <div className="credentials-sections">
         {CREDENTIAL_SECTIONS.map(({ type, title }) => {
           const sectionCredentials = credentials.filter(

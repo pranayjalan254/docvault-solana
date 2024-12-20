@@ -1,40 +1,32 @@
 import { PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@project-serum/anchor";
-import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
+import { IDL } from "../../smart contracts/stakeidl";
 
 const programId = new PublicKey("AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1");
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
+import bs58 from "bs58";
 
-const getStatusString = (status: any) => {
-  if (status?.verified) return "Verified";
-  if (status?.rejected) return "Rejected";
-  return "Pending";
-};
-
-export const fetchAllCredentials = async (
-  publicKey: PublicKey,
+export const fetchAllUnverifiedCredentials = async (
   provider: AnchorProvider
 ): Promise<Credential[]> => {
   const program = new Program(IDL as any, programId, provider);
 
-  // Fetch all credential types in parallel
+  // Create filter for unverified status (status = 0)
+  const statusFilter = {
+    memcmp: {
+      offset: 240, // Status field offset
+      bytes: bs58.encode(Buffer.from([0])), // 0 represents Pending status
+    },
+  };
+
+  // Fetch all unverified credentials
   const [degrees, projects, skills, employments, certificates] =
     await Promise.all([
-      program.account.userDegreeCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.projectCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.skillCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.employmentCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.certificateCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
+      program.account.userDegreeCredential.all([statusFilter]),
+      program.account.projectCredential.all([statusFilter]),
+      program.account.skillCredential.all([statusFilter]),
+      program.account.employmentCredential.all([statusFilter]),
+      program.account.certificateCredential.all([statusFilter]),
     ]);
 
   return [
@@ -44,7 +36,9 @@ export const fetchAllCredentials = async (
       dateIssued: new Date(
         d.account.timestamp.toNumber() * 1000
       ).toLocaleDateString(),
-      status: getStatusString(d.account.status),
+      status: "Pending",
+      owner: d.account.userAddress,
+      publicKey: d.publicKey,
       details: {
         university: d.account.collegeName,
         passoutYear: d.account.passoutYear?.toString() || "N/A",
@@ -57,6 +51,7 @@ export const fetchAllCredentials = async (
         p.account.timestamp.toNumber() * 1000
       ).toLocaleDateString(),
       status: getStatusString(p.account.status),
+      owner: p.account.authority,
       details: {
         projectUrl: p.account.projectLink,
         description: p.account.projectDescription,
@@ -69,6 +64,7 @@ export const fetchAllCredentials = async (
         s.account.timestamp.toNumber() * 1000
       ).toLocaleDateString(),
       status: getStatusString(s.account.status),
+      owner: s.account.authority,
       details: {
         skillLevel: s.account.proficiencyLevel?.toString(),
         description: s.account.proofLink,
@@ -77,16 +73,11 @@ export const fetchAllCredentials = async (
     ...employments.map((e: any) => ({
       type: "Employment History",
       title: e.account.jobTitle,
-      dateIssued: `${new Date(
-        e.account.startDate.toNumber() * 1000
-      ).toLocaleDateString()} - ${
-        e.account.currentlyWorking
-          ? "Present"
-          : e.account.endDate
-          ? new Date(e.account.endDate.toNumber() * 1000).toLocaleDateString()
-          : "N/A"
-      }`,
+      dateIssued: new Date(
+        e.account.timestamp.toNumber() * 1000
+      ).toLocaleDateString(),
       status: getStatusString(e.account.status),
+      owner: e.account.authority,
       details: {
         company: e.account.companyName,
         position: e.account.jobTitle,
@@ -99,6 +90,7 @@ export const fetchAllCredentials = async (
         c.account.dateOfIssue.toNumber() * 1000
       ).toLocaleDateString(),
       status: getStatusString(c.account.status),
+      owner: c.account.authority,
       details: {
         certificationProvider: c.account.issuer,
         description: c.account.proofLink || "N/A",
@@ -106,3 +98,15 @@ export const fetchAllCredentials = async (
     })),
   ];
 };
+function getStatusString(status: any): string {
+  switch (status) {
+    case 0:
+      return "Unverified";
+    case 1:
+      return "Verified";
+    case 2:
+      return "Rejected";
+    default:
+      return "Unknown";
+  }
+}

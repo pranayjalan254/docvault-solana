@@ -3,7 +3,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { IDL } from "./idl1";
+import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
 
 const PROGRAM_ID = new PublicKey(
