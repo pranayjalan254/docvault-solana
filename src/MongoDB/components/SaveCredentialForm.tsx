@@ -1,37 +1,50 @@
-
 import React, { useState } from 'react';
 import { saveCredentialWithPDF } from '../utils/saveCredential';
-import { AnchorProvider } from "@project-serum/anchor";
 import { useWallet } from "@solana/wallet-adapter-react";
 
+interface Metadata {
+  [key: string]: any;
+}
+
 const SaveCredentialForm: React.FC = () => {
-  const [credentialId, setCredentialId] = useState('');
-  const [stakeAmount, setStakeAmount] = useState(0);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [issuer, setIssuer] = useState('');
+  const [issuanceDate, setIssuanceDate] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+  const [metadata, setMetadata] = useState('');
   const [pdf, setPdf] = useState<File | null>(null);
   const { publicKey } = useWallet();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!publicKey || !pdf) return;
-
-    // Upload PDF to storage and get URL (implementation not shown)
-    const pdfUrl = await uploadPdf(pdf);
-
-    const credentialData = {
-      credentialId,
-      stakeAmount,
-      verifications: [],
-      authenticVotes: 0,
-      totalStaked: stakeAmount,
-      isFinalized: false,
-    };
+    if (!publicKey || !pdf) {
+      alert('Wallet not connected or PDF not selected.');
+      return;
+    }
 
     try {
+      const pdfUrl = await uploadPdf(pdf);
+
+      const credentialData = {
+        title,
+        description,
+        issuer,
+        issuanceDate: new Date(issuanceDate),
+        expirationDate: expirationDate ? new Date(expirationDate) : undefined,
+        holderAddress: publicKey.toBase58(),
+        metadata: metadata ? JSON.parse(metadata) : undefined,
+      };
+
       await saveCredentialWithPDF(credentialData, pdfUrl);
       alert('Credential saved successfully.');
       // Reset form
-      setCredentialId('');
-      setStakeAmount(0);
+      setTitle('');
+      setDescription('');
+      setIssuer('');
+      setIssuanceDate('');
+      setExpirationDate('');
+      setMetadata('');
       setPdf(null);
     } catch (error) {
       console.error('Failed to save credential:', error);
@@ -40,29 +53,75 @@ const SaveCredentialForm: React.FC = () => {
   };
 
   const uploadPdf = async (file: File): Promise<string> => {
-    // Implement PDF upload logic here
-    // Return the URL of the uploaded PDF
-    return 'https://example.com/path-to-uploaded-pdf.pdf';
+    // Implement your PDF upload logic here
+    // This is a placeholder implementation
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('https://your-upload-endpoint.com/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to upload PDF');
+    }
+
+    const data = await response.json();
+    return data.url; // Adjust based on your upload response
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <div>
-        <label>Credential ID:</label>
+        <label>Title:</label>
         <input
           type="text"
-          value={credentialId}
-          onChange={(e) => setCredentialId(e.target.value)}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
           required
         />
       </div>
       <div>
-        <label>Stake Amount:</label>
-        <input
-          type="number"
-          value={stakeAmount}
-          onChange={(e) => setStakeAmount(Number(e.target.value))}
+        <label>Description:</label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
           required
+        />
+      </div>
+      <div>
+        <label>Issuer:</label>
+        <input
+          type="text"
+          value={issuer}
+          onChange={(e) => setIssuer(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label>Issuance Date:</label>
+        <input
+          type="date"
+          value={issuanceDate}
+          onChange={(e) => setIssuanceDate(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label>Expiration Date:</label>
+        <input
+          type="date"
+          value={expirationDate}
+          onChange={(e) => setExpirationDate(e.target.value)}
+        />
+      </div>
+      <div>
+        <label>Metadata (JSON):</label>
+        <textarea
+          value={metadata}
+          onChange={(e) => setMetadata(e.target.value)}
+          placeholder='e.g., {"key":"value"}'
         />
       </div>
       <div>
