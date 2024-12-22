@@ -15,7 +15,10 @@ const CredentialFormBase: React.FC<CredentialFormBaseProps> = ({
   return (
     <div className="credential-form-base fade-in">
       <h2>{title}</h2>
-      <form onSubmit={onSubmit}>{children}</form>
+      <form onSubmit={onSubmit}>
+        {children}
+        <button type="submit">Save</button>
+      </form>
     </div>
   );
 };

@@ -16,3 +16,5 @@ export const getProgram = () => {
   const provider = getProvider();
   return new Program(IDL as any, PROGRAM_ID, provider);
 };
+
+// ...existing code...

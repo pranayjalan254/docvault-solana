@@ -1,22 +1,21 @@
 import { Program, AnchorProvider } from "@project-serum/anchor";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { IDL } from "../../smart contracts/stakeidl";
 
 const STAKING_PROGRAM_ID = new PublicKey(
   "4f2FENBxCWveGTu1QKZCuiU8hhMb5U4DGeeYTVr64trf"
 );
 
-export interface StakingInfo {
   credentialId: string;
   stakeAmount: number;
+  stakeAmount: number;
   verifications: number;
-  authenticVotes: number;
   totalStaked: number;
+  isFinalized: boolean;
   isFinalized: boolean;
 }
 
-export const initializeStaking = async (
   provider: AnchorProvider,
+  credentialId: string,
   credentialId: string,
   stakeAmount: number
 ) => {
@@ -84,17 +83,11 @@ export const getStakingInfo = async (
   );
 
   return {
-    // @ts-ignore
     credentialId: credentialAccount.credentialId,
-    // @ts-ignore
     stakeAmount: credentialAccount.stakeAmount.toNumber(),
-    // @ts-ignore
     verifications: credentialAccount.verifications,
-    // @ts-ignore
     authenticVotes: credentialAccount.authenticVotes,
-    // @ts-ignore
     totalStaked: credentialAccount.totalStaked.toNumber(),
-    // @ts-ignore
     isFinalized: credentialAccount.isFinalized,
   };
 };

@@ -17,8 +17,9 @@ import {
 import { clusterApiUrl } from "@solana/web3.js";
 import { WalletAdapterNetwork } from "@solana/wallet-adapter-base";
 import "@solana/wallet-adapter-react-ui/styles.css";
-import SharedProfile from "./components/Dashboard/Profile/SharedProfile/SharedProfile";
+import SharedProfile from "./components/Dashboard/Profile/SharedProfile/SharedProfile"; // Ensure usage or remove if unused
 import { Toaster } from "react-hot-toast";
+import SaveCredentialForm from './MongoDB/components/SaveCredentialForm';
 
 const App: React.FC = () => {
   const network = WalletAdapterNetwork.Devnet;
@@ -56,6 +57,7 @@ const App: React.FC = () => {
           </WalletModalProvider>
         </WalletProvider>
       </ConnectionProvider>
+      <SaveCredentialForm />
       <Toaster position="top-right" />
     </>
   );
