@@ -3,9 +3,7 @@ import Credential, { ICredential } from '../models/Credential';
 export const saveCredential = async (
   credentialType: ICredential['credentialType'],
   credentialAccountPublicKey: string,
-  name: string,
-  pdfFile: File,
-  metadata?: Record<string, any>
+  pdfFile: File
 ): Promise<void> => {
   try {
     const arrayBuffer = await pdfFile.arrayBuffer();
@@ -14,14 +12,11 @@ export const saveCredential = async (
     const credential = new Credential({
       credentialType,
       credentialAccountPublicKey,
-      name,
       pdf: {
         data: buffer,
         contentType: pdfFile.type,
         filename: pdfFile.name
-      },
-      metadata,
-      createdAt: new Date()
+      }
     });
 
     await credential.save();
