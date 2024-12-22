@@ -1,37 +1,33 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ICredential extends Document {
-  credentialId: string;
-  title: string;
-  description: string;
-  issuer: string;
-  issuanceDate: Date;
-  expirationDate?: Date;
-  holderAddress: string;
+  credentialType: 'Skill' | 'Degree' | 'Employment' | 'Project' | 'Certification';
+  credentialAccountPublicKey: string;
+  name: string;
+  pdf: {
+    data: Buffer;
+    contentType: string;
+    filename: string;
+  };
   metadata?: Record<string, any>;
-  pdfUrl: string;
-  createdAt: Date; // Added field
-  updatedAt: Date; // Added field
+  createdAt: Date;
 }
 
-const CredentialSchema: Schema = new Schema({
-  credentialId: { type: String, required: true, unique: true, index: true },
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  issuer: { type: String, required: true },
-  issuanceDate: { type: Date, required: true },
-  expirationDate: { type: Date },
-  holderAddress: { type: String, required: true },
+const CredentialSchema = new Schema({
+  credentialType: { 
+    type: String, 
+    required: true, 
+    enum: ['Skill', 'Degree', 'Employment', 'Project', 'Certification'] 
+  },
+  credentialAccountPublicKey: { type: String, required: true, index: true },
+  name: { type: String, required: true },
+  pdf: {
+    data: Buffer,
+    contentType: String,
+    filename: String
+  },
   metadata: { type: Schema.Types.Mixed },
-  pdfUrl: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }, // Added default
-  updatedAt: { type: Date, default: Date.now }, // Added default
+  createdAt: { type: Date, default: Date.now }
 });
 
-// Update timestamps on save
-CredentialSchema.pre<ICredential>('save', function (next) {
-  this.updatedAt = new Date();
-  next();
-});
-
-export default mongoose.model<ICredential>('Credential', CredentialSchema);
+export default mongoose.model<ICredential>('Credential', CredentialSchema, 'credentials');
