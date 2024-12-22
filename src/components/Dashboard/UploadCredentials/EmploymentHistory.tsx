@@ -5,26 +5,24 @@ import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
-import "./ProjectForm.css";
+import { saveEmploymentUpload } from '../../../MongoDB/utils/saveEmploymentUpload';
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
 const connection = new Connection("https://api.devnet.solana.com");
 
-const ProjectForm: React.FC = () => {
-  const [projectName, setProjectName] = useState("");
-  const [collaborators, setCollaborators] = useState("");
+const EmploymentHistoryForm: React.FC = () => {
+  const [companyName, setCompanyName] = useState("");
+  const [jobTitle, setJobTitle] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [currentlyWorking, setCurrentlyWorking] = useState(false);
-  const [link, setLink] = useState("");
-  const [projectDetails, setProjectDetails] = useState("");
-  const [projectFiles, setProjectFiles] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [proof, setProof] = useState<File | null>(null);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
-
+  console.log(proof);
   const getProgram = () => {
     if (!publicKey || !signTransaction || !signAllTransactions) {
       throw new Error("Wallet not connected");
@@ -47,10 +45,10 @@ const ProjectForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!publicKey) {
+    if (!publicKey || !proof) {
       notification.error({
-        message: "Wallet not connected",
-        description: "Please connect your wallet to submit credentials",
+        message: "Missing Requirements",
+        description: "Please connect wallet and upload proof document",
       });
       return;
     }
@@ -70,103 +68,69 @@ const ProjectForm: React.FC = () => {
         ? new Date(endDate).getTime() / 1000
         : null;
 
-      // Convert collaborators string to array if not empty
-      const collaboratorsArray = collaborators.trim()
-        ? collaborators.split(",").map((c) => c.trim())
-        : null;
-
       await program.methods
-        .submitProject(
-          projectName,
-          projectDetails,
-          collaboratorsArray, // This will be null if empty
+        .submitEmployment(
+          companyName,
+          jobTitle,
           new BN(startTimestamp),
           endTimestamp ? new BN(endTimestamp) : null,
-          currentlyWorking,
-          link
+          currentlyWorking
         )
         .accounts({
-          project: credentialAccount.publicKey,
+          employment: credentialAccount.publicKey,
           user: publicKey,
           systemProgram: web3.SystemProgram.programId,
         })
         .signers([credentialAccount])
         .rpc();
 
-      // Upload PDF and get URL
-      const pdfUrl = "https://your-upload-endpoint.com/upload";
-
-      // Return or log data
-      const result = {
-        name: projectName,
-        credentialAccount: credentialAccount.publicKey.toBase58(),
-        pdfUrl
-      };
-      console.log(result);
-
-      notification.success({
-        message: "Success",
-        description: "Project submitted and saved successfully!",
-      });
+      // Save PDF to MongoDB
+      await saveEmploymentUpload(
+        credentialAccount.publicKey.toBase58(),
+        proof
+      );
 
       // Reset form
-      setProjectName("");
-      setCollaborators("");
+      setCompanyName("");
+      setJobTitle("");
       setStartDate("");
       setEndDate("");
       setCurrentlyWorking(false);
-      setLink("");
-      setProjectDetails("");
-      setProjectFiles(null);
+      setProof(null);
     } catch (error) {
-      console.error("Failed to submit and save project:", error);
-      alert('Failed to submit and save project.');
+      console.error("Failed to submit and save employment history:", error);
+      alert('Failed to submit and save employment history.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <CredentialFormBase title="Showcase your Projects" onSubmit={handleSubmit}>
+    <CredentialFormBase title="Employment History" onSubmit={handleSubmit}>
       <div className="project-form-group">
-        <label className="form-label">Project Name</label>
+        <label className="form-label">Company Name</label>
         <input
           type="text"
           className="form-input"
-          placeholder="Enter your project name"
-          value={projectName}
-          onChange={(e) => setProjectName(e.target.value)}
+          placeholder="Enter your company name"
+          value={companyName}
+          onChange={(e) => setCompanyName(e.target.value)}
           required
           disabled={isSubmitting}
         />
       </div>
 
       <div className="project-form-group">
-        <label className="form-label">Project Description</label>
-        <textarea
-          className="form-textarea"
-          placeholder="Enter project description"
-          value={projectDetails}
-          onChange={(e) => setProjectDetails(e.target.value)}
-          rows={5}
-          required
-          disabled={isSubmitting}
-        />
-      </div>
-
-      <div className="project-form-group">
-        <label className="form-label">Collaborators</label>
+        <label className="form-label">Job Title</label>
         <input
           type="text"
           className="form-input"
-          placeholder="Enter collaborators (comma-separated)"
-          value={collaborators}
-          onChange={(e) => setCollaborators(e.target.value)}
+          placeholder="Enter your designation"
+          value={jobTitle}
+          onChange={(e) => setJobTitle(e.target.value)}
+          required
           disabled={isSubmitting}
         />
-        <small className="text-muted">
-          Separate multiple collaborators with commas
-        </small>
       </div>
 
       <div className="project-form-group timeline-group">
@@ -181,6 +145,7 @@ const ProjectForm: React.FC = () => {
             disabled={isSubmitting}
           />
         </div>
+
         <div className="date-input">
           <label className="form-label">End Date</label>
           <input
@@ -211,25 +176,11 @@ const ProjectForm: React.FC = () => {
           Currently Working
         </label>
       </div>
-
-      <div className="project-form-group">
-        <label className="form-label">Project Link</label>
-        <input
-          type="url"
-          className="form-input"
-          placeholder="Enter project link (e.g., GitHub, Live Demo)"
-          value={link}
-          onChange={(e) => setLink(e.target.value)}
-          disabled={isSubmitting}
-          required={!projectFiles}
-        />
-      </div>
       <div className="form-group">
-        <label>Upload Proofs (PDFs/Screenshots)</label>
+        <label>Upload Proofs (Offer Letter/ID)</label>
         <input
           type="file"
-          onChange={(e) => setProjectFiles(e.target.files?.[0] || null)}
-          required={!link}
+          onChange={(e) => setProof(e.target.files?.[0] || null)}
         />
       </div>
       <button
@@ -237,10 +188,10 @@ const ProjectForm: React.FC = () => {
         disabled={isSubmitting || !publicKey}
         className="submit-btn"
       >
-        {isSubmitting ? "Submitting..." : "Submit Project"}
+        {isSubmitting ? "Submitting..." : "Submit Employment History"}
       </button>
     </CredentialFormBase>
   );
 };
 
-export default ProjectForm;
+export default EmploymentHistoryForm;

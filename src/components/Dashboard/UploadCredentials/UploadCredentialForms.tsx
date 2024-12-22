@@ -1,9 +1,4 @@
 import React, { useState } from "react";
-import DegreeForm from "./DegreeForm";
-import ProjectForm from "./ProjectForm";
-import SkillForm from "./Skills";
-import EmploymentHistoryForm from "./EmployHistory";
-import CertificationForm from "./OnlineCertifications";
 import { storeCredential } from "../../../MongoDB/credentialService";
 
 interface UploadCredentialFormsProps {

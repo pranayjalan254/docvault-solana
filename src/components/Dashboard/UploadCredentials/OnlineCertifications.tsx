@@ -5,6 +5,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
+import { saveCertificationUpload } from '../../../MongoDB/utils/saveCertificationUpload';
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -41,10 +42,10 @@ const OnlineCertificationsForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!publicKey) {
+    if (!publicKey || !proof) {
       notification.error({
-        message: "Wallet not connected",
-        description: "Please connect your wallet to submit credentials",
+        message: "Missing Requirements",
+        description: "Please connect wallet and upload proof document",
       });
       return;
     }
@@ -54,15 +55,12 @@ const OnlineCertificationsForm: React.FC = () => {
       const program = getProgram();
       const certificateKeypair = web3.Keypair.generate();
 
-      // Convert date to Unix timestamp
-      const issueTimestamp = new Date(dateOfIssue).getTime() / 1000;
-
-      const tx = await program.methods
+      await program.methods
         .submitCertificate(
           certificationName,
           issuer,
-          new BN(issueTimestamp),
-          proofLink ? proofLink : null
+          new BN(new Date(dateOfIssue).getTime() / 1000),
+          proofLink || null
         )
         .accounts({
           certificate: certificateKeypair.publicKey,
@@ -72,11 +70,15 @@ const OnlineCertificationsForm: React.FC = () => {
         .signers([certificateKeypair])
         .rpc();
 
-      console.log("Transaction signature:", tx);
+      // Save PDF to MongoDB
+      await saveCertificationUpload(
+        certificateKeypair.publicKey.toBase58(),
+        proof
+      );
 
       notification.success({
         message: "Success",
-        description: "Certificate submitted successfully!",
+        description: "Certificate submitted and saved successfully!",
       });
 
       // Reset form
@@ -85,11 +87,8 @@ const OnlineCertificationsForm: React.FC = () => {
       setDateOfIssue("");
       setProofLink("");
     } catch (error) {
-      console.error("Error submitting certificate:", error);
-      notification.error({
-        message: "Error",
-        description: "Failed to submit certificate. Please try again.",
-      });
+      console.error("Failed to submit certificate:", error);
+      alert('Failed to submit certificate.');
     } finally {
       setIsSubmitting(false);
     }

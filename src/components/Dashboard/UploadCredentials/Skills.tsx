@@ -6,6 +6,8 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
 
+import { saveSkillUpload } from '../../../MongoDB/utils/saveSkillUpload';
+
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
@@ -53,16 +55,18 @@ const SkillForm: React.FC = () => {
       return;
     }
 
-    if (proficiency === "") {
+    if (!proof) {
       notification.error({
-        message: "Invalid Input",
-        description: "Please select a proficiency level",
+        message: "Missing PDF",
+        description: "Please upload a proof document",
       });
       return;
     }
 
     try {
       setIsSubmitting(true);
+      
+      // Handle Solana transaction
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
 
@@ -79,20 +83,29 @@ const SkillForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
+      // Save PDF directly to MongoDB
+      if (proof) {
+        await saveSkillUpload(
+          credentialAccount.publicKey.toBase58(),
+          proof
+        );
+      }
+
       notification.success({
         message: "Success",
-        description: "Skill credential submitted successfully!",
+        description: "Skill submitted and PDF saved successfully!",
       });
 
       // Reset form
       setSkillName("");
       setProficiency("");
       setProofLink("");
+      setProof(null);
     } catch (error) {
-      console.error("Error submitting credential:", error);
+      console.error("Failed to submit skill:", error);
       notification.error({
         message: "Error",
-        description: "Failed to submit credential. Please try again.",
+        description: "Failed to submit skill. Please try again.",
       });
     } finally {
       setIsSubmitting(false);
@@ -144,7 +157,7 @@ const SkillForm: React.FC = () => {
         <input
           type="file"
           onChange={(e) => setProof(e.target.files?.[0] || null)}
-          required={!proofLink}
+          disabled={isSubmitting}
         />
       </div>
 

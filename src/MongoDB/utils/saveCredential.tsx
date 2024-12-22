@@ -1,5 +1,5 @@
 import Credential from '../models/Credential';
-
+import mongoose from 'mongoose';
 interface CredentialData {
   title: string;
   description: string;
@@ -28,6 +28,7 @@ export const saveCredentialWithPDF = async (
     }
 
     const credential = new Credential({
+      credentialId: new mongoose.Types.ObjectId().toString(), // Generate unique ID
       ...credentialData,
       pdfUrl,
       createdAt: new Date(),

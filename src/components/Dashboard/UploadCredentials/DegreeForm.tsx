@@ -5,6 +5,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
+import { saveDegreeUpload } from '../../../MongoDB/utils/saveDegreeUpload';
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -42,10 +43,10 @@ const DegreeForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!publicKey) {
+    if (!publicKey || !proof) {
       notification.error({
-        message: "Wallet not connected",
-        description: "Please connect your wallet to submit credentials",
+        message: "Missing Requirements",
+        description: "Please connect wallet and upload proof document",
       });
       return;
     }
@@ -65,10 +66,11 @@ const DegreeForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      notification.success({
-        message: "Success",
-        description: "Credential submitted successfully!",
-      });
+      // Save PDF to MongoDB
+      await saveDegreeUpload(
+        credentialAccount.publicKey.toBase58(),
+        proof
+      );
 
       // Reset form
       setDegreeName("");
@@ -76,11 +78,8 @@ const DegreeForm: React.FC = () => {
       setPassoutYear("");
       setProof(null);
     } catch (error) {
-      console.error("Error submitting credential:", error);
-      notification.error({
-        message: "Error",
-        description: "Failed to submit credential. Please try again.",
-      });
+      console.error("Failed to submit and save degree:", error);
+      alert('Failed to submit and save degree.');
     } finally {
       setIsSubmitting(false);
     }
