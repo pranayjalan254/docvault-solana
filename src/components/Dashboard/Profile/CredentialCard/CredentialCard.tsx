@@ -3,12 +3,17 @@ import CredentialModal from "../CredentialModal/CredentialModal";
 import "./CredentialCard.css";
 import { CredentialModalProps } from "../CredentialModal/CredentialModal";
 
-const CredentialCard: React.FC<CredentialModalProps> = ({
+interface CredentialCardProps extends CredentialModalProps {
+  showVerifyButton?: boolean;
+}
+
+const CredentialCard: React.FC<CredentialCardProps> = ({
   type,
   title,
   dateIssued,
   status,
   details,
+  showVerifyButton,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -81,6 +86,9 @@ const CredentialCard: React.FC<CredentialModalProps> = ({
           >
             View Details
           </button>
+          {showVerifyButton && (
+            <button className="verify-btn">Verify</button>
+          )}
         </div>
       </div>
 

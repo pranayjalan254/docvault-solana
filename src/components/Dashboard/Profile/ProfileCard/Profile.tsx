@@ -10,7 +10,7 @@ import { toast } from "react-hot-toast";
 import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
 import { encryptPublicKey } from "../../../../utils/encryptionUtils";
 
-const CACHE_DURATION = 5 * 60 * 1000;
+const CACHE_DURATION = 0.05 * 60 * 1000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 
@@ -73,7 +73,7 @@ const Profile: React.FC = () => {
 
       try {
         const connection = new Connection(
-          "https://api.devnet.solana.com",
+          "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",
           "confirmed"
         );
         const provider = new AnchorProvider(connection, wallet as any, {

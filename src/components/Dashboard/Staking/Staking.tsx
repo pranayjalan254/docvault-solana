@@ -1,70 +1,123 @@
 import React, { useEffect, useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { AnchorProvider } from "@project-serum/anchor";
-import { CredentialModalProps } from "../Profile/CredentialModal/CredentialModal";
-import { fetchAllUnverifiedCredentials } from "../../../utils/allCredentialUtils";
-import "./Staking.css";
 import { Connection } from "@solana/web3.js";
+import { AnchorProvider } from "@project-serum/anchor";
+import { toast } from "react-hot-toast";
+import { CredentialModalProps as Credential } from "../Profile/CredentialModal/CredentialModal";
+import { fetchUnverifiedCredentials } from "../../../utils/allCredentialUtils";
+import CredentialCard from "../Profile/CredentialCard/CredentialCard";
+import "./Staking.css";
+
+const CACHE_DURATION = 0.5 * 60 * 1000; 
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 2000;
 
 const Staking: React.FC = () => {
-  const [unverifiedCredentials, setUnverifiedCredentials] = useState<
-    CredentialModalProps[]
-  >([]);
+  const { wallet } = useWallet();
+  const [unverifiedCredentials, setUnverifiedCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
-  const { connected } = useWallet();
-  const connection = new Connection(
-    "https://api.devnet.solana.com",
-    "confirmed"
-  );
-  const provider = new AnchorProvider(connection, window as any, {
-    commitment: "confirmed",
-  });
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const loadCredentials = async () => {
-      if (!connected || !provider) return;
+    const fetchCredentialsWithRetry = async (retryCount = 0) => {
+      if (!wallet) {
+        setLoading(false);
+        return;
+      }
+
+      // Check localStorage cache first
+      const cachedData = localStorage.getItem("unverified-credentials");
+      if (cachedData) {
+        const { credentials: cached, timestamp } = JSON.parse(cachedData);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          setUnverifiedCredentials(cached);
+          setLoading(false);
+          return;
+        }
+      }
 
       try {
-        setLoading(true);
-        const credentials = await fetchAllUnverifiedCredentials(provider);
+        const connection = new Connection("https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4", "confirmed");
+        const provider = new AnchorProvider(connection, wallet as any, {
+          commitment: "confirmed",
+        });
+
+        const credentials = await fetchUnverifiedCredentials(provider);
+        
+        
+        // Store in localStorage
+        localStorage.setItem(
+          "unverified-credentials",
+          JSON.stringify({
+            credentials: credentials,
+            timestamp: Date.now(),
+          })
+        );
+
+        setError(null);
         setUnverifiedCredentials(credentials);
       } catch (error) {
-        console.error("Error loading unverified credentials:", error);
+        console.error("Error fetching unverified credentials:", error);
+        if (retryCount < MAX_RETRIES) {
+          setTimeout(
+            () => fetchCredentialsWithRetry(retryCount + 1),
+            RETRY_DELAY
+          );
+        } else {
+          setError("Failed to fetch credentials. Please try again later.");
+          toast.error("Failed to fetch credentials");
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    loadCredentials();
-  }, [connected, provider]);
+    fetchCredentialsWithRetry();
+  }, [wallet]);
 
-  if (!connected) {
+  if (!wallet) {
     return (
-      <div>Please connect your wallet to view unverified credentials.</div>
+      <div className="staking-container">
+        <h2>Please connect your wallet to view unverified credentials</h2>
+      </div>
     );
   }
 
   if (loading) {
-    return <div>Loading unverified credentials...</div>;
+    return (
+      <div className="staking-container">
+        <h2>Loading unverified credentials...</h2>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="staking-container">
+        <h2>Error: {error}</h2>
+      </div>
+    );
   }
 
   return (
     <div className="staking-container">
-      <h2>Verify Credentials</h2>
+      <h2>Unverified Credentials</h2>
       <div className="credentials-grid">
-        {unverifiedCredentials.map((credential, index) => (
-          <div key={index} className="credential-card">
-            <h3>{credential.type}</h3>
-            <p>
-              <strong>Title:</strong> {credential.title}
-            </p>
-            <p>
-              <strong>Date:</strong> {credential.dateIssued}
-            </p>
-
-            <button className="verify-button">Stake to Verify</button>
-          </div>
-        ))}
+        {unverifiedCredentials.length > 0 ? (
+          unverifiedCredentials.map((credential, index) => (
+            <CredentialCard
+              key={index}
+              type={credential.type}
+              title={credential.title}
+              dateIssued={credential.dateIssued}
+              status={credential.status}
+              details={credential.details}
+              showVerifyButton={true}
+            />
+          ))
+        ) : (
+          <p>No unverified credentials found.</p>
+        )}
       </div>
     </div>
   );

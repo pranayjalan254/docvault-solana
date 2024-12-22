@@ -8,7 +8,7 @@ import { fetchAllCredentials } from "../../../../utils/credentialUtils";
 import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
 import { decryptPublicKey } from "../../../../utils/encryptionUtils";
 
-const CACHE_DURATION = 5 * 60 * 1000;
+const CACHE_DURATION = 0.5 * 60 * 1000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 

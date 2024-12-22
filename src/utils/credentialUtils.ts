@@ -10,6 +10,7 @@ const getStatusString = (status: any) => {
   if (status?.rejected) return "Rejected";
   return "Pending";
 };
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const fetchAllCredentials = async (
   publicKey: PublicKey,
@@ -18,24 +19,27 @@ export const fetchAllCredentials = async (
   const program = new Program(IDL as any, programId, provider);
 
   // Fetch all credential types in parallel
-  const [degrees, projects, skills, employments, certificates] =
-    await Promise.all([
-      program.account.userDegreeCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.projectCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.skillCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.employmentCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-      program.account.certificateCredential.all([
-        { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
-      ]),
-    ]);
+  const degrees = await program.account.userDegreeCredential.all([
+    { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
+  ]);
+  await delay(1000);
+  
+  const skills = await program.account.skillCredential.all([
+    { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
+  ]);
+  await delay(1000);
+  const employments = await program.account.employmentCredential.all([
+    { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
+  ]);
+  await delay(1000);
+  const certificates = await program.account.certificateCredential.all([
+    { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
+  ]);
+  await delay(1000);
+  const projects = await program.account.projectCredential.all([
+    { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
+  ]);
+  
 
   return [
     ...degrees.map((d: any) => ({

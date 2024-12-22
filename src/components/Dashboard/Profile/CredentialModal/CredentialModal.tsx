@@ -8,6 +8,7 @@ export interface CredentialModalProps {
   title: string;
   dateIssued: string;
   status: string;
+  credentialId?: string;
   buttonPosition?: { x: number; y: number };
   details?: {
     university?: string;
