@@ -1,18 +1,54 @@
-import mongoose from 'mongoose';
+import mongoose, { ConnectOptions } from 'mongoose';
 
-const connectDB = async (): Promise<void> => {
+interface MongoConnectionOptions extends ConnectOptions {
+  useNewUrlParser: boolean;
+  useUnifiedTopology: boolean;
+  serverSelectionTimeoutMS: number;
+  socketTimeoutMS: number;
+  retryWrites: boolean;
+  retryReads: boolean;
+}
+
+const connectDB = async (retries = 5): Promise<void> => {
   try {
     const mongoURI = process.env.MONGODB_URL;
 
     if (!mongoURI) {
-      throw new Error('MongoDB URI is not defined in environment variables');
+      throw new Error('MONGODB_URL is not defined in environment variables');
     }
 
-    await mongoose.connect(mongoURI);
-    console.log('MongoDB connected successfully');
-  } catch (error) {
-    console.error(`Error: ${(error as Error).message}`);
-    process.exit(1);
+    const options: MongoConnectionOptions = {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      retryWrites: true,
+      retryReads: true,
+    };
+
+    await mongoose.connect(mongoURI, options);
+
+    const db = mongoose.connection;
+    
+    db.on('error', (err: Error) => {
+      console.error('MongoDB connection error:', err);
+      if (retries > 0) {
+        console.log(`Retrying connection... (${retries} attempts left)`);
+        setTimeout(() => connectDB(retries - 1), 5000);
+      }
+    });
+    
+    db.once('open', () => {
+      console.log('MongoDB connected successfully');
+    });
+  } catch (error: unknown) {
+    if (retries > 0) {
+      console.log(`Connection failed, retrying... (${retries} attempts left)`);
+      setTimeout(() => connectDB(retries - 1), 5000);
+    } else {
+      console.error('MongoDB connection failed:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
   }
 };
 

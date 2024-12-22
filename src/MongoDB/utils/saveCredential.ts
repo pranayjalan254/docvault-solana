@@ -1,11 +1,15 @@
-import Credential, { ICredential } from '../models/Credential';
+import Credential from '../models/Credential';
 
 export const saveCredential = async (
-  credentialType: ICredential['credentialType'],
+  credentialType: 'Skill' | 'Degree' | 'Employment' | 'Project' | 'Certification',
   credentialAccountPublicKey: string,
   pdfFile: File
 ): Promise<void> => {
   try {
+    if (!pdfFile || !credentialAccountPublicKey) {
+      throw new Error('Missing required fields');
+    }
+
     const arrayBuffer = await pdfFile.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -20,9 +24,9 @@ export const saveCredential = async (
     });
 
     await credential.save();
-    console.log(`${credentialType} credential saved successfully`);
+    console.log(`${credentialType} saved successfully`);
   } catch (error) {
-    console.error(`Error saving ${credentialType} credential:`, error);
+    console.error('Error saving credential:', error);
     throw error;
   }
 };
