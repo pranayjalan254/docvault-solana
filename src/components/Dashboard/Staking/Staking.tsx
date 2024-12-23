@@ -37,9 +37,18 @@ interface StakingState {
   stakingError: string | null;
 }
 
+// Update CredentialState interface to include authenticVotes
 interface CredentialState {
   verifierCount: number;
   isFinalized: boolean;
+  authenticVotes: number; // Add this
+}
+
+// Update VerifierInfo to include the user's vote
+interface VerifierInfo {
+  hasVoted: boolean;
+  hasClaimed: boolean;
+  votedAuthentic: boolean; // Add this
 }
 
 const Staking: React.FC = () => {
@@ -66,6 +75,9 @@ const Staking: React.FC = () => {
   const [stakedCredentials, setStakedCredentials] = useState<Set<string>>(
     new Set()
   );
+  const [verifierStates, setVerifierStates] = useState<
+    Record<string, VerifierInfo>
+  >({});
 
   useEffect(() => {
     const fetchCredentialsWithRetry = async (retryCount = 0) => {
@@ -406,9 +418,12 @@ const Staking: React.FC = () => {
     try {
       const credentialPDA = deriveCredentialPDA(program, credentialId);
       const account = await program.account.credential.fetch(credentialPDA);
+
+      // Include authenticVotes in the return object
       return {
         verifierCount: (account as any).verifierCount,
         isFinalized: (account as any).isFinalized,
+        authenticVotes: (account as any).authenticVotes,
       };
     } catch {
       return null;
@@ -435,26 +450,60 @@ const Staking: React.FC = () => {
     }
   };
 
+  const fetchVerifierInfo = async (credentialId: string) => {
+    const program = initializeProgram();
+    if (!program || !publicKey) return null;
+
+    try {
+      const credentialPDA = deriveCredentialPDA(program, credentialId);
+      const [verifierPDA] = web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("verifier"),
+          credentialPDA.toBuffer(),
+          publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+      const account = await program.account.verifier.fetch(verifierPDA);
+
+      // Include votedAuthentic in the return object
+      return {
+        hasVoted: (account as any).hasVoted,
+        hasClaimed: (account as any).hasClaimed,
+        votedAuthentic: (account as any).votedAuthentic,
+      };
+    } catch {
+      return null;
+    }
+  };
+
   const updateCredentialStates = async () => {
     if (!unverifiedCredentials.length) return;
     const newStates: Record<string, CredentialState> = {};
+    const newVerifierStates: Record<string, VerifierInfo> = {};
     const stakedSet = new Set<string>();
 
     for (const cred of unverifiedCredentials) {
-      const [state, isStaked] = await Promise.all([
+      const [state, isStaked, verifierInfo] = await Promise.all([
         fetchCredentialState(cred.id),
         checkIfStaked(cred.id),
+        fetchVerifierInfo(cred.id),
       ]);
+
       if (state) {
         newStates[cred.id] = state;
       }
       if (isStaked) {
         stakedSet.add(cred.id);
       }
+      if (verifierInfo) {
+        newVerifierStates[cred.id] = verifierInfo;
+      }
     }
 
     setCredentialStates((prev) => ({ ...prev, ...newStates }));
     setStakedCredentials(stakedSet);
+    setVerifierStates((prev) => ({ ...prev, ...newVerifierStates }));
   };
 
   useEffect(() => {
@@ -469,6 +518,30 @@ const Staking: React.FC = () => {
   const canVote = (credentialId: string) => {
     return stakedCredentials.has(credentialId);
   };
+
+  // Fix isUserInMajority logic
+  function isUserInMajority(
+    credentialState: CredentialState,
+    verifier: VerifierInfo
+  ): boolean {
+    if (!credentialState || !verifier || !verifier.hasVoted) return false;
+
+    const authenticVotes = credentialState.authenticVotes;
+    const totalVotes = credentialState.verifierCount;
+    const inauthenticVotes = totalVotes - authenticVotes;
+
+    // User voted authentic and authentic votes are majority
+    if (verifier.votedAuthentic && authenticVotes > inauthenticVotes) {
+      return true;
+    }
+
+    // User voted inauthentic and inauthentic votes are majority
+    if (!verifier.votedAuthentic && inauthenticVotes > authenticVotes) {
+      return true;
+    }
+
+    return false;
+  }
 
   if (!publicKey) {
     return (
@@ -529,74 +602,102 @@ const Staking: React.FC = () => {
 
       <div className="credentials-grid">
         {getFilteredCredentials().length > 0 ? (
-          getFilteredCredentials().map((credential, index) => (
-            <div key={index} className="credential-card-wrapper">
-              <div className="credential-content">
-                <CredentialCard
-                  type={credential.type}
-                  title={credential.title}
-                  dateIssued={credential.dateIssued}
-                  status={credential.status}
-                  details={credential.details}
-                  hideViewDetails={true}
-                  progress={getStakingProgress(credential.id)}
-                  progressColor={
-                    filters.find((f) => f.type === credential.type)?.color
-                  }
-                />
-              </div>
-              <div className="staking-actions">
-                <button
-                  className="stake-button"
-                  onClick={() => handleStake(credential.id)}
-                  disabled={
-                    stakingState[credential.id]?.isStaking ||
-                    stakedCredentials.has(credential.id)
-                  }
-                >
-                  {stakingState[credential.id]?.isStaking
-                    ? "Staking..."
-                    : stakedCredentials.has(credential.id)
-                    ? "Staked"
-                    : "Stake"}
-                </button>
-                <div className="voting-buttons">
+          getFilteredCredentials().map((credential, index) => {
+            const alreadyVoted = verifierStates[credential.id]?.hasVoted;
+            const alreadyClaimed = verifierStates[credential.id]?.hasClaimed;
+            const isStaked = stakedCredentials.has(credential.id);
+            const credentialState = credentialStates[credential.id];
+
+            // New check: disable staking if consensus is met
+            const isConsensusMet =
+              credentialState?.verifierCount >= 10 ||
+              credentialState?.isFinalized;
+
+            const userInMajority = isUserInMajority(
+              credentialState,
+              verifierStates[credential.id]
+            );
+
+            return (
+              <div key={index} className="credential-card-wrapper">
+                <div className="credential-content">
+                  <CredentialCard
+                    type={credential.type}
+                    title={credential.title}
+                    dateIssued={credential.dateIssued}
+                    status={credential.status}
+                    details={credential.details}
+                    hideViewDetails={true}
+                    progress={getStakingProgress(credential.id)}
+                    progressColor={
+                      filters.find((f) => f.type === credential.type)?.color
+                    }
+                  />
+                </div>
+                <div className="staking-actions">
                   <button
-                    className="vote-authentic"
-                    onClick={() => handleVote(credential.id, true)}
+                    className="stake-button"
+                    onClick={() => handleStake(credential.id)}
                     disabled={
-                      !canVote(credential.id) ||
-                      stakingState[credential.id]?.isVoting
+                      stakingState[credential.id]?.isStaking ||
+                      isStaked ||
+                      isConsensusMet
                     }
                   >
-                    Verify
+                    {isConsensusMet
+                      ? "Consensus Met"
+                      : stakingState[credential.id]?.isStaking
+                      ? "Staking..."
+                      : isStaked
+                      ? "Staked"
+                      : "Stake"}
                   </button>
+                  <div className="voting-buttons">
+                    <button
+                      className="vote-authentic"
+                      onClick={() => handleVote(credential.id, true)}
+                      disabled={
+                        !canVote(credential.id) ||
+                        alreadyVoted ||
+                        stakingState[credential.id]?.isVoting
+                      }
+                    >
+                      {alreadyVoted ? "Voted" : "IsTrue"}
+                    </button>
+                    <button
+                      className="vote-inauthentic"
+                      onClick={() => handleVote(credential.id, false)}
+                      disabled={
+                        !canVote(credential.id) ||
+                        alreadyVoted ||
+                        stakingState[credential.id]?.isVoting
+                      }
+                    >
+                      {alreadyVoted ? "Voted" : "IsFalse"}
+                    </button>
+                  </div>
                   <button
-                    className="vote-inauthentic"
-                    onClick={() => handleVote(credential.id, false)}
+                    className="claim-button"
+                    onClick={() => handleClaim(credential.id)}
                     disabled={
                       !canVote(credential.id) ||
-                      stakingState[credential.id]?.isVoting
+                      alreadyClaimed ||
+                      stakingState[credential.id]?.isClaiming ||
+                      !userInMajority
                     }
                   >
-                    Reject
+                    {alreadyClaimed
+                      ? "Reward Claimed"
+                      : stakingState[credential.id]?.isClaiming
+                      ? "Claiming..."
+                      : !userInMajority
+                      ? "Reward Not Claimable"
+                      : "Claim Reward"}
                   </button>
                 </div>
-                <button
-                  className="claim-button"
-                  onClick={() => handleClaim(credential.id)}
-                  disabled={
-                    !canVote(credential.id) ||
-                    stakingState[credential.id]?.isClaiming
-                  }
-                >
-                  {stakingState[credential.id]?.isClaiming
-                    ? "Claiming..."
-                    : "Claim Reward"}
-                </button>
               </div>
-            </div>
-          ))
+            );
+          })
         ) : (
           <div className="no-credentials">
             <p>No {activeType} credentials found.</p>
