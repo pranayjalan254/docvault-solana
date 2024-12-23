@@ -2,19 +2,87 @@
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
+  background-color: #1a1a1a;
+  min-height: 100vh;
 }
 
 .staking-container h2 {
   margin-bottom: 2rem;
-  color: #333;
+  color: #fff;
   text-align: center;
+  font-size: 1.8rem;
+  font-weight: 500;
+}
+
+.filter-toggles {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 1rem;
+  border-radius: 8px;
+  background: #2d2d2d;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.filter-toggle {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid;
+  cursor: pointer;
+  font-weight: 400;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 120px;
+  justify-content: center;
+  background: #363636;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  font-size: 0.9rem;
+}
+
+.filter-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.filter-label {
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+}
+
+.credential-count {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
 }
 
 .credentials-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 2rem;
-  padding: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.credential-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.credential-card {
+  background: #2d2d2d;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: transform 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.credential-card:hover {
+  transform: translateY(-2px);
 }
 
 .staking-header {
@@ -102,22 +170,98 @@
 }
 
 .progress-bar {
-  margin-top: 10px;
-  background-color: #333;
-  border-radius: 5px;
-  overflow: hidden;
-  height: 8px;
   width: 100%;
+  height: 6px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
 }
 
 .progress-fill {
-  background-color: #4caf50;
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
-  transition: width 0.3s ease;
+  transition: width 0.6s ease;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+  animation: progressPulse 2s infinite;
 }
 
 .progress-text {
   margin-top: 5px;
   font-size: 12px;
   color: #bdbdbd;
+}
+
+.staking-progress {
+  padding: 15px;
+  background-color: #f5f5f5;
+}
+
+.staking-progress-wrapper {
+  padding: 0.8rem;
+  background: #363636;
+  border-top: 1px solid #444;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #fff;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background-color: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.no-credentials {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 2rem;
+  background: #2d2d2d;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+/* Dark theme adjustments for CredentialCard */
+.credential-card .credential-content {
+  background: #363636;
+  color: #fff;
+  padding: 0.8rem;
+}
+
+.credential-card .credential-header {
+  color: #fff;
+  border-bottom: 1px solid #444;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.credential-card .credential-details {
+  color: #ccc;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+/* Animation for progress bar */
+@keyframes progressPulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
 }

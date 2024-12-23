@@ -4,7 +4,6 @@ import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 
 const programId = new PublicKey("AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1");
-const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const getStatusString = (status: any) => {
   if (status?.verified) return "Verified";
   if (status?.rejected) return "Rejected";
@@ -17,64 +16,254 @@ export const fetchUnverifiedCredentials = async (
   const program = new Program(IDL as any, programId, provider);
   let credentials: Credential[] = [];
 
-  // Fetch degrees with error handling
   try {
-    const degrees = await program.account.userDegreeCredential.all();
-    await delay(2000);
-    
-    const degreeCredentials = (degrees || [])
-      .filter((d: any) => d?.account && !d.account.status.verified && !d.account.status.rejected)
-      .map((d: any) => ({
-        type: "Degree",
-        title: d.account.degreeName,
-        dateIssued: new Date(
-          d.account.timestamp.toNumber() * 1000
-        ).toLocaleDateString(),
-        status: getStatusString(d.account.status),
-        details: {
-          university: d.account.collegeName,
-          passoutYear: d.account.passoutYear?.toString() || "N/A",
-        },
-      }));
+    const degreeAccounts = await provider.connection.getProgramAccounts(
+      programId,
+      {
+        filters: [
+          {
+            dataSize: 304, // 8 + 32 + 128 + 128 + 8
+          },
+        ],
+      }
+    );
+
+    const degreeCredentials = degreeAccounts
+      .map((account) => {
+        try {
+          const decoded = program.coder.accounts.decode(
+            "UserDegreeCredential",
+            account.account.data
+          );
+
+          if (!decoded.status.verified && !decoded.status.rejected) {
+            return {
+              type: "Degree",
+              title: decoded.degreeName,
+              dateIssued: new Date(
+                decoded.timestamp.toNumber() * 1000
+              ).toLocaleDateString(),
+              status: getStatusString(decoded.status),
+              details: {
+                university: decoded.collegeName,
+                passoutYear: decoded.passoutYear?.toString() || "N/A",
+              },
+            };
+          }
+        } catch (err) {
+          console.error("Error decoding degree account:", err);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    // @ts-ignore
     credentials = [...credentials, ...degreeCredentials];
   } catch (error) {
     console.error("Error fetching degree credentials:", error);
   }
 
-  // Fetch employments with error handling
   try {
-    const employments = await program.account.employmentCredential.all();
-    await delay(2000);
-    
-    const employmentCredentials = (employments || [])
-      .filter((e: any) => e?.account && !e.account.status.verified && !e.account.status.rejected)
-      .map((e: any) => {
-        const startDate = new Date(e.account.startDate.toNumber() * 1000).toLocaleDateString();
-        let endDateStr = "Present";
-        
-        // Only try to access endDate if it exists
-        if (e.account.endDate) {
-          try {
-            endDateStr = new Date(e.account.endDate.toNumber() * 1000).toLocaleDateString();
-          } catch (err) {
-            console.error("Error parsing end date:", err);
-          }
-        }
-        
-        return {
-          type: "Employment History",
-          title: e.account.jobTitle,
-          dateIssued: `${startDate} - ${endDateStr}`,
-          status: getStatusString(e.account.status),
-          details: {
-            company: e.account.companyName,
-            position: e.account.jobTitle,
+    const employmentAccounts = await provider.connection.getProgramAccounts(
+      programId,
+      {
+        filters: [
+          {
+            dataSize: 578, // 8 + 32 + 128 + 128 + 8 + 8 + 1 + 8 + 1 + 256
           },
-        };
-      });
+        ],
+      }
+    );
+
+    const employmentCredentials = employmentAccounts
+      .map((account) => {
+        try {
+          const decoded = program.coder.accounts.decode(
+            "EmploymentCredential",
+            account.account.data
+          );
+
+          if (!decoded.status.verified && !decoded.status.rejected) {
+            const startDate = new Date(
+              decoded.startDate.toNumber() * 1000
+            ).toLocaleDateString();
+            let endDateStr = "Present";
+
+            if (decoded.endDate) {
+              endDateStr = new Date(
+                decoded.endDate.toNumber() * 1000
+              ).toLocaleDateString();
+            }
+
+            return {
+              type: "Employment History",
+              title: decoded.jobTitle,
+              dateIssued: `${startDate} - ${endDateStr}`,
+              status: getStatusString(decoded.status),
+              details: {
+                company: decoded.companyName,
+                position: decoded.jobTitle,
+              },
+            };
+          }
+        } catch (err) {
+          console.error("Error decoding employment account:", err);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    // @ts-ignore
     credentials = [...credentials, ...employmentCredentials];
   } catch (error) {
     console.error("Error fetching employment credentials:", error);
+  }
+
+  try {
+    const projectAccounts = await provider.connection.getProgramAccounts(
+      programId,
+      {
+        filters: [
+          {
+            dataSize: 1602, // 8 + 32 + 256 + 512 + 256 + 8 + 8 + 1 + 256 + 8 + 1 + 256
+          },
+        ],
+      }
+    );
+
+    const projectCredentials = projectAccounts
+      .map((account) => {
+        try {
+          const decoded = program.coder.accounts.decode(
+            "ProjectCredential",
+            account.account.data
+          );
+
+          if (!decoded.status.verified && !decoded.status.rejected) {
+            const startDate = new Date(
+              decoded.startDate.toNumber() * 1000
+            ).toLocaleDateString();
+            let endDateStr = "Present";
+
+            if (decoded.endDate) {
+              endDateStr = new Date(
+                decoded.endDate.toNumber() * 1000
+              ).toLocaleDateString();
+            }
+
+            return {
+              type: "Project",
+              title: decoded.projectName,
+              dateIssued: `${startDate} - ${endDateStr}`,
+              status: getStatusString(decoded.status),
+              details: {
+                description: decoded.projectDescription,
+                collaborators: decoded.collaborators || [],
+                projectLink: decoded.projectLink,
+              },
+            };
+          }
+        } catch (err) {
+          console.error("Error decoding project account:", err);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    // @ts-ignore
+    credentials = [...credentials, ...projectCredentials];
+  } catch (error) {
+    console.error("Error fetching project credentials:", error);
+  }
+
+  try {
+    const certificateAccounts = await provider.connection.getProgramAccounts(
+      programId,
+      {
+        filters: [
+          {
+            dataSize: 825, // 8 + 32 + 128 + 128 + 8 + 256 + 8 + 1 + 256
+          },
+        ],
+      }
+    );
+
+    const certificateCredentials = certificateAccounts
+      .map((account) => {
+        try {
+          const decoded = program.coder.accounts.decode(
+            "CertificateCredential",
+            account.account.data
+          );
+
+          if (!decoded.status.verified && !decoded.status.rejected) {
+            return {
+              type: "Certificate",
+              title: decoded.certificationName,
+              dateIssued: new Date(
+                decoded.dateOfIssue.toNumber() * 1000
+              ).toLocaleDateString(),
+              status: getStatusString(decoded.status),
+              details: {
+                issuer: decoded.issuer,
+                proofLink: decoded.proofLink || "N/A",
+              },
+            };
+          }
+        } catch (err) {
+          console.error("Error decoding certificate account:", err);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    // @ts-ignore
+    credentials = [...credentials, ...certificateCredentials];
+  } catch (error) {
+    console.error("Error fetching certificate credentials:", error);
+  }
+
+  // Add skill credentials fetching
+  try {
+    const skillAccounts = await provider.connection.getProgramAccounts(
+      programId,
+      {
+        filters: [
+          {
+            dataSize: 690, // 8 + 32 + 128 + 1 + 256 + 8 + 1 + 256
+          },
+        ],
+      }
+    );
+
+    const skillCredentials = skillAccounts
+      .map((account) => {
+        try {
+          const decoded = program.coder.accounts.decode(
+            "SkillCredential",
+            account.account.data
+          );
+
+          if (!decoded.status.verified && !decoded.status.rejected) {
+            return {
+              type: "Skill",
+              title: decoded.skillName,
+              dateIssued: new Date(
+                decoded.timestamp.toNumber() * 1000
+              ).toLocaleDateString(),
+              status: getStatusString(decoded.status),
+              details: {
+                proficiencyLevel: decoded.proficiencyLevel,
+                proofLink: decoded.proofLink,
+              },
+            };
+          }
+        } catch (err) {
+          console.error("Error decoding skill account:", err);
+        }
+        return null;
+      })
+      .filter(Boolean);
+    // @ts-ignore
+    credentials = [...credentials, ...skillCredentials];
+  } catch (error) {
+    console.error("Error fetching skill credentials:", error);
   }
 
   return credentials;

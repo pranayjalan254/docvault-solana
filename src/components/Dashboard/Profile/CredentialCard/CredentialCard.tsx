@@ -5,6 +5,9 @@ import { CredentialModalProps } from "../CredentialModal/CredentialModal";
 
 interface CredentialCardProps extends CredentialModalProps {
   showVerifyButton?: boolean;
+  hideViewDetails?: boolean;
+  progress?: number; // Add this prop
+  progressColor?: string; // Add this prop
 }
 
 const CredentialCard: React.FC<CredentialCardProps> = ({
@@ -14,6 +17,9 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   status,
   details,
   showVerifyButton,
+  hideViewDetails = false,
+  progress,
+  progressColor,
 }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -80,14 +86,35 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
               <span className="detail-value">{dateIssued}</span>
             </p>
           </div>
-          <button
-            className="view-details-btn"
-            onClick={() => setIsModalOpen(true)}
-          >
-            View Details
-          </button>
-          {showVerifyButton && (
-            <button className="verify-btn">Verify</button>
+
+          {progress !== undefined && (
+            <div className="progress-container">
+              <div className="progress-info">
+                <span>Verification Progress</span>
+                <span className="progress-percentage">{progress}%</span>
+              </div>
+              <div className="fancy-progress-bar">
+                <div
+                  className="fancy-progress-fill"
+                  style={{
+                    width: `${progress}%`,
+                    backgroundColor: progressColor,
+                  }}
+                >
+                  <div className="fancy-progress-glow"></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showVerifyButton && <button className="verify-btn">Verify</button>}
+          {!hideViewDetails && (
+            <button
+              className="view-details-btn"
+              onClick={() => setIsModalOpen(true)}
+            >
+              View Details
+            </button>
           )}
         </div>
       </div>
