@@ -377,3 +377,58 @@
   position: relative;
   z-index: 1;
 }
+
+/* Add these new styles */
+.claim-button-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+}
+
+.claim-button {
+  flex: 1;
+  padding-right: 36px !important; /* Make room for the icon */
+}
+
+.info-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 16px;
+  z-index: 2;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+.info-icon:hover {
+  color: #fff;
+}
+
+/* Make sure disabled button doesn't hide the icon */
+.claim-button:disabled + .info-icon,
+.claim-button.claimed + .info-icon {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Tooltip styles */
+.ant-tooltip {
+  max-width: 300px;
+}
+
+.ant-tooltip-inner {
+  background-color: #fff !important;
+  color: #000 !important;
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ant-tooltip-arrow-content {
+  background-color: #fff !important;
+}

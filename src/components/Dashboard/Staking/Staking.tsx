@@ -4,6 +4,8 @@ import { Connection } from "@solana/web3.js";
 import { AnchorProvider, Program, web3, BN } from "@project-serum/anchor";
 import { toast } from "react-hot-toast";
 import { utf8 } from "@project-serum/anchor/dist/cjs/utils/bytes";
+import { InfoCircleOutlined } from "@ant-design/icons";
+import { Tooltip } from "antd";
 
 import { fetchUnverifiedCredentials } from "../../../utils/allCredentialUtils";
 import CredentialCard from "../Profile/CredentialCard/CredentialCard";
@@ -51,6 +53,12 @@ interface VerifierInfo {
   votedAuthentic: boolean; // Add this
 }
 
+interface TransactionState {
+  signature?: string;
+  confirmed: boolean;
+  error?: string;
+}
+
 const Staking: React.FC = () => {
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
   const [unverifiedCredentials, setUnverifiedCredentials] = useState<
@@ -77,6 +85,9 @@ const Staking: React.FC = () => {
   );
   const [verifierStates, setVerifierStates] = useState<
     Record<string, VerifierInfo>
+  >({});
+  const [_transactions, setTransactions] = useState<
+    Record<string, TransactionState>
   >({});
 
   useEffect(() => {
@@ -242,6 +253,17 @@ const Staking: React.FC = () => {
     }
   };
 
+  const confirmTransaction = async (signature: string) => {
+    const connection = new Connection(DEVNET_ENDPOINT);
+    try {
+      await connection.confirmTransaction(signature, "confirmed");
+      return true;
+    } catch (error) {
+      console.error("Transaction confirmation error:", error);
+      return false;
+    }
+  };
+
   const handleStake = async (credentialId: string) => {
     const program = initializeProgram();
     if (!program || !publicKey) {
@@ -281,7 +303,7 @@ const Staking: React.FC = () => {
         await initializeCredentialAccount(credentialId);
       }
 
-      await program.methods
+      const tx = await program.methods
         .stakeForCredential()
         .accounts({
           credential: credentialPDA,
@@ -291,8 +313,23 @@ const Staking: React.FC = () => {
         })
         .rpc();
 
-      toast.success("Successfully staked for credential verification");
-      setStakedCredentials((prev) => new Set(prev).add(credentialId));
+      setTransactions((prev) => ({
+        ...prev,
+        [credentialId]: { signature: tx, confirmed: false },
+      }));
+
+      const confirmed = await confirmTransaction(tx);
+      if (confirmed) {
+        setTransactions((prev) => ({
+          ...prev,
+          [credentialId]: { signature: tx, confirmed: true },
+        }));
+        toast.success("Successfully staked for credential verification");
+        setStakedCredentials((prev) => new Set(prev).add(credentialId));
+        await updateCredentialStates();
+      } else {
+        throw new Error("Transaction failed to confirm");
+      }
     } catch (error) {
       console.error("Staking error:", error);
       setStakingState((prev) => ({
@@ -543,6 +580,31 @@ const Staking: React.FC = () => {
     return false;
   }
 
+  const getRewardClaimableReason = (
+    _credentialId: string,
+    credentialState?: CredentialState,
+    verifierInfo?: VerifierInfo
+  ): string => {
+    if (!credentialState) return "Staking not started";
+    if (!verifierInfo) return "Must stake before claiming reward";
+    if (!verifierInfo.hasVoted) return "Must vote before claiming reward";
+    if (verifierInfo.hasClaimed) return "Reward already claimed";
+    if (!credentialState.isFinalized) return "Voting period not finished";
+
+    const authenticVotes = credentialState.authenticVotes;
+    const totalVotes = credentialState.verifierCount;
+    const inauthenticVotes = totalVotes - authenticVotes;
+
+    if (verifierInfo.votedAuthentic && authenticVotes <= inauthenticVotes) {
+      return "Your 'authentic' vote is in the minority";
+    }
+    if (!verifierInfo.votedAuthentic && inauthenticVotes <= authenticVotes) {
+      return "Your 'inauthentic' vote is in the minority";
+    }
+
+    return "Unknown reason";
+  };
+
   if (!publicKey) {
     return (
       <div className="staking-container">
@@ -604,7 +666,7 @@ const Staking: React.FC = () => {
         {getFilteredCredentials().length > 0 ? (
           getFilteredCredentials().map((credential, index) => {
             const alreadyVoted = verifierStates[credential.id]?.hasVoted;
-            const alreadyClaimed = verifierStates[credential.id]?.hasClaimed;
+
             const isStaked = stakedCredentials.has(credential.id);
             const credentialState = credentialStates[credential.id];
 
@@ -613,9 +675,13 @@ const Staking: React.FC = () => {
               credentialState?.verifierCount >= 10 ||
               credentialState?.isFinalized;
 
-            const userInMajority = isUserInMajority(
-              credentialState,
-              verifierStates[credential.id]
+            const state = credentialStates[credential.id];
+            const verifierInfo = verifierStates[credential.id];
+            const canClaimReward = isUserInMajority(state, verifierInfo);
+            const rewardReason = getRewardClaimableReason(
+              credential.id,
+              state,
+              verifierInfo
             );
 
             return (
@@ -676,24 +742,24 @@ const Staking: React.FC = () => {
                       {alreadyVoted ? "Voted" : "IsFalse"}
                     </button>
                   </div>
-                  <button
-                    className="claim-button"
-                    onClick={() => handleClaim(credential.id)}
-                    disabled={
-                      !canVote(credential.id) ||
-                      alreadyClaimed ||
-                      stakingState[credential.id]?.isClaiming ||
-                      !userInMajority
-                    }
-                  >
-                    {alreadyClaimed
-                      ? "Reward Claimed"
-                      : stakingState[credential.id]?.isClaiming
-                      ? "Claiming..."
-                      : !userInMajority
-                      ? "Reward Not Claimable"
-                      : "Claim Reward"}
-                  </button>
+                  <div className="claim-button-wrapper">
+                    <button
+                      className={`claim-button ${
+                        verifierInfo?.hasClaimed ? "claimed" : ""
+                      }`}
+                      onClick={() => handleClaim(credential.id)}
+                      disabled={!canClaimReward || verifierInfo?.hasClaimed}
+                    >
+                      {verifierInfo?.hasClaimed
+                        ? "Reward Claimed"
+                        : stakingState[credential.id]?.isClaiming
+                        ? "Claiming..."
+                        : "Claim Reward"}
+                    </button>
+                    <Tooltip title={rewardReason} placement="top">
+                      <InfoCircleOutlined className="info-icon" />
+                    </Tooltip>
+                  </div>
                 </div>
               </div>
             );
