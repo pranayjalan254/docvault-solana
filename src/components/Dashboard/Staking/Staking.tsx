@@ -3,7 +3,6 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { Connection } from "@solana/web3.js";
 import { AnchorProvider, Program, web3, BN } from "@project-serum/anchor";
 import { toast } from "react-hot-toast";
-import { CredentialModalProps } from "../Profile/CredentialModal/CredentialModal";
 import { utf8 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 
 import { fetchUnverifiedCredentials } from "../../../utils/allCredentialUtils";
@@ -38,6 +37,11 @@ interface StakingState {
   stakingError: string | null;
 }
 
+interface CredentialState {
+  verifierCount: number;
+  isFinalized: boolean;
+}
+
 const Staking: React.FC = () => {
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
   const [unverifiedCredentials, setUnverifiedCredentials] = useState<
@@ -56,6 +60,12 @@ const Staking: React.FC = () => {
   const [stakingState, setStakingState] = useState<
     Record<string, StakingState>
   >({});
+  const [credentialStates, setCredentialStates] = useState<
+    Record<string, CredentialState>
+  >({});
+  const [stakedCredentials, setStakedCredentials] = useState<Set<string>>(
+    new Set()
+  );
 
   useEffect(() => {
     const fetchCredentialsWithRetry = async (retryCount = 0) => {
@@ -88,25 +98,19 @@ const Staking: React.FC = () => {
 
         const fetchedCredentials = await fetchUnverifiedCredentials(provider);
 
-        // Generate unique IDs using timestamp and index
-        const credentials = fetchedCredentials.map(
-          (cred: CredentialModalProps, index: number) => ({
-            ...cred,
-            id: `${Date.now()}-${index}`, // Unique ID
-            publicKey: cred.publicKey || `credential-${Date.now()}-${index}`, // Fallback public key
-          })
-        );
-
         // Store in localStorage
         localStorage.setItem(
           "unverified-credentials",
           JSON.stringify({
-            credentials: credentials,
+            credentials: fetchedCredentials,
             timestamp: Date.now(),
           })
         );
         setError(null);
-        setUnverifiedCredentials(credentials);
+        // @ts-ignore
+        setUnverifiedCredentials(fetchedCredentials);
+        // Immediately update on-chain states
+        await updateCredentialStates();
       } catch (error) {
         console.error("Error fetching unverified credentials:", error);
         if (retryCount < MAX_RETRIES) {
@@ -140,9 +144,10 @@ const Staking: React.FC = () => {
     return unverifiedCredentials.filter((cred) => cred.type === activeType);
   };
 
-  // Dummy progress data - replace with blockchain data later
-  const getStakingProgress = (_credential: Credential) => {
-    return Math.floor(Math.random() * 100);
+  const getStakingProgress = (credentialId: string) => {
+    const state = credentialStates[credentialId];
+    if (!state) return 0;
+    return Math.min((state.verifierCount / 10) * 100, 100);
   };
 
   const initializeProgram = () => {
@@ -275,6 +280,7 @@ const Staking: React.FC = () => {
         .rpc();
 
       toast.success("Successfully staked for credential verification");
+      setStakedCredentials((prev) => new Set(prev).add(credentialId));
     } catch (error) {
       console.error("Staking error:", error);
       setStakingState((prev) => ({
@@ -391,6 +397,79 @@ const Staking: React.FC = () => {
     }
   };
 
+  const fetchCredentialState = async (
+    credentialId: string
+  ): Promise<CredentialState | null> => {
+    const program = initializeProgram();
+    if (!program) return null;
+
+    try {
+      const credentialPDA = deriveCredentialPDA(program, credentialId);
+      const account = await program.account.credential.fetch(credentialPDA);
+      return {
+        verifierCount: (account as any).verifierCount,
+        isFinalized: (account as any).isFinalized,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const checkIfStaked = async (credentialId: string): Promise<boolean> => {
+    const program = initializeProgram();
+    if (!program || !publicKey) return false;
+    try {
+      const credentialPDA = deriveCredentialPDA(program, credentialId);
+      const [verifierPDA] = web3.PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("verifier"),
+          credentialPDA.toBuffer(),
+          publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+      await program.account.verifier.fetch(verifierPDA);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const updateCredentialStates = async () => {
+    if (!unverifiedCredentials.length) return;
+    const newStates: Record<string, CredentialState> = {};
+    const stakedSet = new Set<string>();
+
+    for (const cred of unverifiedCredentials) {
+      const [state, isStaked] = await Promise.all([
+        fetchCredentialState(cred.id),
+        checkIfStaked(cred.id),
+      ]);
+      if (state) {
+        newStates[cred.id] = state;
+      }
+      if (isStaked) {
+        stakedSet.add(cred.id);
+      }
+    }
+
+    setCredentialStates((prev) => ({ ...prev, ...newStates }));
+    setStakedCredentials(stakedSet);
+  };
+
+  useEffect(() => {
+    if (!publicKey) return;
+    const intervalId = setInterval(() => {
+      updateCredentialStates();
+    }, 10000);
+    updateCredentialStates();
+    return () => clearInterval(intervalId);
+  }, [unverifiedCredentials, publicKey]);
+
+  const canVote = (credentialId: string) => {
+    return stakedCredentials.has(credentialId);
+  };
+
   if (!publicKey) {
     return (
       <div className="staking-container">
@@ -460,7 +539,7 @@ const Staking: React.FC = () => {
                   status={credential.status}
                   details={credential.details}
                   hideViewDetails={true}
-                  progress={getStakingProgress(credential)}
+                  progress={getStakingProgress(credential.id)}
                   progressColor={
                     filters.find((f) => f.type === credential.type)?.color
                   }
@@ -470,24 +549,35 @@ const Staking: React.FC = () => {
                 <button
                   className="stake-button"
                   onClick={() => handleStake(credential.id)}
-                  disabled={stakingState[credential.id]?.isStaking}
+                  disabled={
+                    stakingState[credential.id]?.isStaking ||
+                    stakedCredentials.has(credential.id)
+                  }
                 >
                   {stakingState[credential.id]?.isStaking
                     ? "Staking..."
+                    : stakedCredentials.has(credential.id)
+                    ? "Staked"
                     : "Stake"}
                 </button>
                 <div className="voting-buttons">
                   <button
                     className="vote-authentic"
                     onClick={() => handleVote(credential.id, true)}
-                    disabled={stakingState[credential.id]?.isVoting}
+                    disabled={
+                      !canVote(credential.id) ||
+                      stakingState[credential.id]?.isVoting
+                    }
                   >
                     Verify
                   </button>
                   <button
                     className="vote-inauthentic"
                     onClick={() => handleVote(credential.id, false)}
-                    disabled={stakingState[credential.id]?.isVoting}
+                    disabled={
+                      !canVote(credential.id) ||
+                      stakingState[credential.id]?.isVoting
+                    }
                   >
                     Reject
                   </button>
@@ -495,7 +585,10 @@ const Staking: React.FC = () => {
                 <button
                   className="claim-button"
                   onClick={() => handleClaim(credential.id)}
-                  disabled={stakingState[credential.id]?.isClaiming}
+                  disabled={
+                    !canVote(credential.id) ||
+                    stakingState[credential.id]?.isClaiming
+                  }
                 >
                   {stakingState[credential.id]?.isClaiming
                     ? "Claiming..."
