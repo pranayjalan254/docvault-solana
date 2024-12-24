@@ -6,58 +6,26 @@ import { toast } from "react-hot-toast";
 import { utf8 } from "@project-serum/anchor/dist/cjs/utils/bytes";
 import { InfoCircleOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
-
+import {
+  CredentialType,
+  CredentialFilter,
+  CredentialState,
+  VerifierInfo,
+  TransactionState,
+  StakingState,
+} from "./Interfaces";
 import { fetchUnverifiedCredentials } from "../../../utils/allCredentialUtils";
 import CredentialCard from "../Profile/CredentialCard/CredentialCard";
 import "./Staking.css";
 import { IDL } from "../../../../smart contracts/stakeidl";
+import { IDL1 } from "../../../../smart contracts/uploadidl";
 import { Credential } from "./Credential";
-
-type CredentialType =
-  | "Degree"
-  | "Employment History"
-  | "Project"
-  | "Certificate"
-  | "Skill";
-
-interface CredentialFilter {
-  type: CredentialType;
-  active: boolean;
-  color: string;
-}
 
 const CACHE_DURATION = 0.5 * 60 * 1000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
 const STAKE_AMOUNT = 0.01 * web3.LAMPORTS_PER_SOL;
 const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
-
-interface StakingState {
-  isStaking: boolean;
-  isVoting: boolean;
-  isClaiming: boolean;
-  stakingError: string | null;
-}
-
-// Update CredentialState interface to include authenticVotes
-interface CredentialState {
-  verifierCount: number;
-  isFinalized: boolean;
-  authenticVotes: number; // Add this
-}
-
-// Update VerifierInfo to include the user's vote
-interface VerifierInfo {
-  hasVoted: boolean;
-  hasClaimed: boolean;
-  votedAuthentic: boolean; // Add this
-}
-
-interface TransactionState {
-  signature?: string;
-  confirmed: boolean;
-  error?: string;
-}
 
 const Staking: React.FC = () => {
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
@@ -132,7 +100,6 @@ const Staking: React.FC = () => {
         setError(null);
         // @ts-ignore
         setUnverifiedCredentials(fetchedCredentials);
-        // Immediately update on-chain states
         await updateCredentialStates();
       } catch (error) {
         console.error("Error fetching unverified credentials:", error);
@@ -397,6 +364,79 @@ const Staking: React.FC = () => {
     }
   };
 
+  const updateCredentialVerificationStatus = async (
+    credentialId: string,
+    credentialState: CredentialState
+  ) => {
+    const wallet = {
+      publicKey,
+      signTransaction,
+      signAllTransactions,
+    };
+
+    const devnetConnection = new Connection(DEVNET_ENDPOINT, {
+      commitment: "confirmed",
+      confirmTransactionInitialTimeout: 60000,
+    });
+
+    const provider = new AnchorProvider(devnetConnection, wallet as any, {
+      commitment: "confirmed",
+      preflightCommitment: "confirmed",
+      skipPreflight: false,
+    });
+
+    const program = new Program(
+      IDL1 as any,
+      "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1",
+      provider
+    );
+
+    if (credentialState.isFinalized) {
+      const isVerified =
+        credentialState.authenticVotes > credentialState.verifierCount / 2;
+
+      try {
+        await program.methods
+          .updateCredentialStatus(isVerified ? "Verified" : "Rejected")
+          .accounts({
+            credential: credentialId,
+            authority: publicKey,
+            systemProgram: web3.SystemProgram.programId,
+          })
+          .rpc();
+
+        // Remove from unverified credentials if successful
+        setUnverifiedCredentials((prev) =>
+          prev.filter((cred) => cred.id !== credentialId)
+        );
+      } catch (error) {
+        console.error("Failed to update credential status:", error);
+      }
+    }
+  };
+
+  const getAllVerifiersForCredential = async (credentialId: string) => {
+    const program = initializeProgram();
+    if (!program) return [];
+
+    try {
+      const credentialPDA = deriveCredentialPDA(program, credentialId);
+      const verifierAccounts = await program.account.verifier.all([
+        {
+          memcmp: {
+            offset: 8, // After discriminator
+            bytes: credentialPDA.toBase58(),
+          },
+        },
+      ]);
+
+      return verifierAccounts.map((account) => account.account);
+    } catch (error) {
+      console.error("Error fetching verifiers:", error);
+      return [];
+    }
+  };
+
   const handleClaim = async (credentialId: string) => {
     const program = initializeProgram();
     if (!program || !publicKey) {
@@ -424,6 +464,32 @@ const Staking: React.FC = () => {
         program.programId
       );
 
+      const credentialStateFetched = await fetchCredentialState(credentialId);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      const fiveDaysInSecs = 5 * 24 * 60 * 60;
+
+      // Call refund if 5 days have passed without finalization
+      if (
+        credentialStateFetched &&
+        !credentialStateFetched.isFinalized &&
+        credentialStateFetched.verifierCount < 10 &&
+        nowSeconds - credentialStateFetched.createdAt >= fiveDaysInSecs
+      ) {
+        await program.methods
+          .refundExpiredStakes()
+          .accounts({
+            credential: credentialPDA,
+            verifier: verifierPDA,
+            authority: publicKey,
+            systemProgram: web3.SystemProgram.programId,
+          })
+          .rpc();
+        toast.success(
+          "Your stake has been refunded as the 5-day window has expired without consensus!"
+        );
+        return;
+      }
+
       await program.methods
         .claimReward()
         .accounts({
@@ -433,6 +499,20 @@ const Staking: React.FC = () => {
           systemProgram: web3.SystemProgram.programId,
         })
         .rpc();
+
+      // After successful claim, check if all eligible stakers have claimed
+      const credentialState = await fetchCredentialState(credentialId);
+      if (credentialState && credentialState.isFinalized) {
+        const allVerifiers = await getAllVerifiersForCredential(credentialId);
+        const allClaimsMade = allVerifiers.every((v: any) => v.hasClaimed);
+
+        if (allClaimsMade) {
+          await updateCredentialVerificationStatus(
+            credentialId,
+            credentialState
+          );
+        }
+      }
 
       toast.success("Successfully claimed reward");
     } catch (error) {
@@ -461,6 +541,7 @@ const Staking: React.FC = () => {
         verifierCount: (account as any).verifierCount,
         isFinalized: (account as any).isFinalized,
         authenticVotes: (account as any).authenticVotes,
+        createdAt: (account as any).createdAt, // <-- Add createdAt
       };
     } catch {
       return null;
@@ -596,10 +677,10 @@ const Staking: React.FC = () => {
     const inauthenticVotes = totalVotes - authenticVotes;
 
     if (verifierInfo.votedAuthentic && authenticVotes <= inauthenticVotes) {
-      return "Your 'authentic' vote is in the minority";
+      return "Your vote is in the minority";
     }
     if (!verifierInfo.votedAuthentic && inauthenticVotes <= authenticVotes) {
-      return "Your 'inauthentic' vote is in the minority";
+      return "Your vote is in the minority";
     }
 
     return "Unknown reason";
@@ -748,7 +829,11 @@ const Staking: React.FC = () => {
                         verifierInfo?.hasClaimed ? "claimed" : ""
                       }`}
                       onClick={() => handleClaim(credential.id)}
-                      disabled={!canClaimReward || verifierInfo?.hasClaimed}
+                      disabled={
+                        !canClaimReward ||
+                        verifierInfo?.hasClaimed ||
+                        !credentialState.isFinalized
+                      }
                     >
                       {verifierInfo?.hasClaimed
                         ? "Reward Claimed"
