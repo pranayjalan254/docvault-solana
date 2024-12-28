@@ -47,6 +47,25 @@ app.post('/api/upload-credential', upload.single('file'), async (req: Request, r
   }
 });
 
+// Add new endpoint to fetch credential proof
+app.get('/api/credential-proof/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const credential = await CredentialModel.findById(req.params.id);
+    
+    if (!credential || !credential.pdf) {
+      res.status(404).json({ success: false, error: 'Proof not found' });
+      return;
+    }
+
+    res.set('Content-Type', credential.pdf.contentType);
+    res.set('Content-Disposition', `inline; filename="${credential.pdf.filename}"`);
+    res.send(credential.pdf.data);
+  } catch (error) {
+    console.error('Error fetching proof:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch proof' });
+  }
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

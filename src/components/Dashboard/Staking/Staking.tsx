@@ -57,6 +57,7 @@ const Staking: React.FC = () => {
   const [_transactions, setTransactions] = useState<
     Record<string, TransactionState>
   >({});
+  const [isLoadingProof, setIsLoadingProof] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchCredentialsWithRetry = async (retryCount = 0) => {
@@ -686,6 +687,27 @@ const Staking: React.FC = () => {
     return "Unknown reason";
   };
 
+  const handleViewProof = async (credentialId: string) => {
+    setIsLoadingProof(prev => ({ ...prev, [credentialId]: true }));
+    
+    try {
+      const response = await fetch(`http://localhost:5000/api/credential-proof/${credentialId}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch proof');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error viewing proof:', error);
+      toast.error('Failed to load proof');
+    } finally {
+      setIsLoadingProof(prev => ({ ...prev, [credentialId]: false }));
+    }
+  };
+
   if (!publicKey) {
     return (
       <div className="staking-container">
@@ -845,6 +867,15 @@ const Staking: React.FC = () => {
                       <InfoCircleOutlined className="info-icon" />
                     </Tooltip>
                   </div>
+                  {isStaked && (
+                    <button
+                      className="view-proof-button"
+                      onClick={() => handleViewProof(credential.id)}
+                      disabled={isLoadingProof[credential.id]}
+                    >
+                      {isLoadingProof[credential.id] ? 'Loading...' : 'View Proof'}
+                    </button>
+                  )}
                 </div>
               </div>
             );

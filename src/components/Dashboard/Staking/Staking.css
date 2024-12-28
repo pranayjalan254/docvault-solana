@@ -432,3 +432,32 @@
 .ant-tooltip-arrow-content {
   background-color: #fff !important;
 }
+
+/* Add these styles */
+.view-proof-button {
+  padding: 10px 16px;
+  border-radius: 4px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background-color: #607d8b !important;
+  color: white !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.view-proof-button:hover:not(:disabled) {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.view-proof-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
