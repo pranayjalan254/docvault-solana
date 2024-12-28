@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export interface ICertificationUpload extends Document {
+export interface ICertificateUpload extends Document {
   type: string;
   credentialAccountPublicKey: string;
   pdf: {
@@ -11,8 +11,8 @@ export interface ICertificationUpload extends Document {
   uploadedAt: Date;
 }
 
-const CertificationUploadSchema = new Schema({
-  type: { type: String, default: 'Certification' },
+const CertificateUploadSchema = new Schema({
+  type: { type: String, default: 'Certificate' },
   credentialAccountPublicKey: { type: String, required: true },
   pdf: {
     data: Buffer,
@@ -22,4 +22,4 @@ const CertificationUploadSchema = new Schema({
   uploadedAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.model<ICertificationUpload>('CertificationUpload', CertificationUploadSchema);
+export default mongoose.model<ICertificateUpload>('CertificateUpload', CertificateUploadSchema);

@@ -1,33 +1,33 @@
-import { readFileAsBase64 } from "./readFileAsBase64";
+import CertificateUpload from '../models/CertificationUpload';
+import { readFileAsBase64 } from './readFileAsBase64';
 
-export const saveCredentialUpload = async (
-  credentialType: "degree" | "project" | "skill" | "employment" | "certificate",
-  credentialId: string,
-  file: File | null
-) => {
+export async function saveCredentialUpload(
+  type: string,
+  publicKey: string,
+  file: File
+): Promise<string> {
   try {
-    if (!file) return null;
+    // Convert file to base64
+    const base64Data = await readFileAsBase64(file);
+    const buffer = Buffer.from(base64Data.split(',')[1], 'base64');
 
-    const fileBase64 = await readFileAsBase64(file);
-
-    const response = await fetch("/api/credentials/upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        credentialType,
-        credentialId,
-        fileBase64,
-        timestamp: new Date(),
-      }),
+    // Create new document
+    const upload = new CertificateUpload({
+      type,
+      credentialAccountPublicKey: publicKey,
+      pdf: {
+        data: buffer,
+        contentType: file.type,
+        filename: file.name
+      }
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to save ${credentialType}`);
-    }
+    // Save to database
+    await upload.save();
+    return upload._id;
 
-    return await response.json();
   } catch (error) {
-    console.error(`Error saving ${credentialType}:`, error);
+    console.error('Error saving credential:', error);
     throw error;
   }
-};
+}

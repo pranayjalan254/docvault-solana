@@ -79,7 +79,7 @@ const OnlineCertificationsForm: React.FC = () => {
       if (proof) {
         try {
           await saveCredentialUpload(
-            'certificate', // or 'project', 'skill', etc.
+            'certificate',
             certificateKeypair.publicKey.toBase58(),
             proof
           );

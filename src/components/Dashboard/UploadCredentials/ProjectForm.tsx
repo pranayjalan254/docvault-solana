@@ -98,12 +98,12 @@ const ProjectForm: React.FC = () => {
         message: "Success",
         description: "Project submitted successfully!",
       });
- if (proof) {
+ if (projectFiles) {
         try {
           await saveCredentialUpload(
             'project', 
             credentialAccount.publicKey.toBase58(),
-            proof
+            projectFiles
           );
         } catch (mongoError) {
           console.error("Error saving to MongoDB:", mongoError);
