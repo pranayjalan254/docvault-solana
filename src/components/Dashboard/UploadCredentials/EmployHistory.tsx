@@ -5,6 +5,7 @@ import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
+import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredentialUpload';
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -87,7 +88,21 @@ const EmploymentHistoryForm: React.FC = () => {
         message: "Success",
         description: "Employment history submitted successfully!",
       });
-
+      if (proof) {
+        try {
+          await saveCredentialUpload(
+            'employment', // or 'project', 'skill', etc.
+            credentialAccount.publicKey.toBase58(),
+            proof
+          );
+        } catch (mongoError) {
+          console.error("Error saving to MongoDB:", mongoError);
+          notification.warning({
+            message: "Partial Success",
+            description: "Certificate submitted on-chain but failed to save proof file.",
+          });
+        }
+      }
       // Reset form
       setCompanyName("");
       setJobTitle("");

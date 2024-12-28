@@ -25,6 +25,7 @@
     "bs58": "^6.0.0",
     "buffer": "^6.0.3",
     "framer-motion": "^11.11.9",
+    "mongoose": "^6.12.0",
     "mongodb": "^6.12.0",
     "process": "^0.11.10",
     "qrcode.react": "^4.1.0",

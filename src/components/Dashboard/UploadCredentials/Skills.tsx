@@ -5,7 +5,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
-
+import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredentialUpload';
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
@@ -83,6 +83,21 @@ const SkillForm: React.FC = () => {
         message: "Success",
         description: "Skill credential submitted successfully!",
       });
+       if (proof) {
+              try {
+                await saveCredentialUpload(
+                  'skill',
+                  credentialAccount.publicKey.toBase58(),
+                  proof
+                );
+              } catch (mongoError) {
+                console.error("Error saving to MongoDB:", mongoError);
+                notification.warning({
+                  message: "Partial Success",
+                  description: "Certificate submitted on-chain but failed to save proof file.",
+                });
+              }
+            }
 
       // Reset form
       setSkillName("");
