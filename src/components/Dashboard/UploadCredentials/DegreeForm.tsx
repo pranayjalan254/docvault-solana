@@ -5,7 +5,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
-import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredential';
+import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
 
 
 const PROGRAM_ID = new PublicKey(
@@ -21,7 +21,6 @@ const DegreeForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
-  console.log(proof);
   const getProgram = () => {
     if (!publicKey || !signTransaction || !signAllTransactions) {
       throw new Error("Wallet not connected");

@@ -1,4 +1,7 @@
 import mongoose, { ConnectOptions } from 'mongoose';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 interface MongoConnectionOptions extends ConnectOptions {
   useNewUrlParser: boolean;
@@ -9,7 +12,7 @@ interface MongoConnectionOptions extends ConnectOptions {
   retryReads: boolean;
 }
 
-const connectDB = async (retries = 5): Promise<void> => {
+const connectDB = async (retries = 5): Promise<typeof mongoose> => {
   try {
     const mongoURI = process.env.MONGODB_URL;
 
@@ -26,11 +29,9 @@ const connectDB = async (retries = 5): Promise<void> => {
       retryReads: true,
     };
 
-    await mongoose.connect(mongoURI, options);
-
-    const db = mongoose.connection;
+    const connection = await mongoose.connect(mongoURI, options);
     
-    db.on('error', (err: Error) => {
+    mongoose.connection.on('error', (err: Error) => {
       console.error('MongoDB connection error:', err);
       if (retries > 0) {
         console.log(`Retrying connection... (${retries} attempts left)`);
@@ -38,13 +39,15 @@ const connectDB = async (retries = 5): Promise<void> => {
       }
     });
     
-    db.once('open', () => {
+    mongoose.connection.once('open', () => {
       console.log('MongoDB connected successfully');
     });
+
+    return connection;
   } catch (error: unknown) {
     if (retries > 0) {
       console.log(`Connection failed, retrying... (${retries} attempts left)`);
-      setTimeout(() => connectDB(retries - 1), 5000);
+      return await connectDB(retries - 1);
     } else {
       console.error('MongoDB connection failed:', error instanceof Error ? error.message : error);
       process.exit(1);
