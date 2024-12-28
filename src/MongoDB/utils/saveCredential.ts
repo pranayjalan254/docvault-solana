@@ -1,32 +1,31 @@
-import Credential from '../models/Credential';
+import CredentialModel from '../models/Credential';
+import { readFileAsBase64 } from './readFileAsBase64';
 
-export const saveCredential = async (
-  credentialType: 'Skill' | 'Degree' | 'Employment' | 'Project' | 'Certification',
-  credentialAccountPublicKey: string,
-  pdfFile: File
-): Promise<void> => {
+export async function saveCredentialUpload(
+  type: 'Skill' | 'Degree' | 'Employment' | 'Project' | 'Certification',
+  publicKey: string,
+  file: File
+): Promise<string> {
   try {
-    if (!pdfFile || !credentialAccountPublicKey) {
-      throw new Error('Missing required fields');
-    }
 
-    const arrayBuffer = await pdfFile.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const base64Data = await readFileAsBase64(file);
+    const buffer = Buffer.from(base64Data.split(',')[1], 'base64');
 
-    const credential = new Credential({
-      credentialType,
-      credentialAccountPublicKey,
+    const newCredential = new CredentialModel({
+      credentialType: type,
+      credentialAccountPublicKey: publicKey,
       pdf: {
         data: buffer,
-        contentType: pdfFile.type,
-        filename: pdfFile.name
+        contentType: file.type,
+        filename: file.name
       }
     });
 
-    await credential.save();
-    console.log(`${credentialType} saved successfully`);
+    const savedCredential = await newCredential.save();
+    return savedCredential._id.toString();
+
   } catch (error) {
     console.error('Error saving credential:', error);
     throw error;
   }
-};
+}

@@ -6,7 +6,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import "./ProjectForm.css";
-import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredentialUpload';
+import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredential';
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -101,7 +101,7 @@ const ProjectForm: React.FC = () => {
  if (projectFiles) {
         try {
           await saveCredentialUpload(
-            'project', 
+            'Project', 
             credentialAccount.publicKey.toBase58(),
             projectFiles
           );

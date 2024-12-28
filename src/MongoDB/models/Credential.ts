@@ -12,18 +12,18 @@ export interface ICredential extends Document {
 }
 
 const CredentialSchema = new Schema({
-  credentialType: { 
-    type: String, 
-    required: true, 
-    enum: ['Skill', 'Degree', 'Employment', 'Project', 'Certification'] 
+  credentialType: {
+    type: String,
+    required: true,
+    enum: ['Skill', 'Degree', 'Employment', 'Project', 'Certification']
   },
   credentialAccountPublicKey: { type: String, required: true, index: true },
   pdf: {
-    data: Buffer,
-    contentType: String,
-    filename: String
+    data: { type: mongoose.Schema.Types.Buffer , required: true },
+    contentType: { type: String },
+    filename: { type: String }
   },
   createdAt: { type: Date, default: Date.now }
 });
-
-export default mongoose.model<ICredential>('Credential', CredentialSchema, 'credentials');
+const CredentialModel = mongoose.model<ICredential>('Credential', CredentialSchema, 'credential');
+export default CredentialModel;

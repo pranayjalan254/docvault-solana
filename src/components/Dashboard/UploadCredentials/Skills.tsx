@@ -5,7 +5,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
-import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredentialUpload';
+import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredential';
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
@@ -86,7 +86,7 @@ const SkillForm: React.FC = () => {
        if (proof) {
               try {
                 await saveCredentialUpload(
-                  'skill',
+                  'Skill',
                   credentialAccount.publicKey.toBase58(),
                   proof
                 );

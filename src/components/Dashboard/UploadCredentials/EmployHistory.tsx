@@ -5,7 +5,7 @@ import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
-import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredentialUpload';
+import { saveCredentialUpload } from '../../../MongoDB/utils/saveCredential';
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -91,7 +91,7 @@ const EmploymentHistoryForm: React.FC = () => {
       if (proof) {
         try {
           await saveCredentialUpload(
-            'employment', // or 'project', 'skill', etc.
+            'Employment',
             credentialAccount.publicKey.toBase58(),
             proof
           );
