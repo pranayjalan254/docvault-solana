@@ -7,6 +7,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import "./ProjectForm.css";
 import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -36,6 +37,7 @@ const ProjectForm: React.FC = () => {
       signTransaction,
       signAllTransactions,
     };
+    
 
     const provider = new AnchorProvider(connection, anchorWallet, {
       preflightCommitment: "processed",
@@ -60,6 +62,17 @@ const ProjectForm: React.FC = () => {
       setIsSubmitting(true);
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
+      const credentialData = {
+        type: "Project",
+        title: projectName,
+        details: {
+          description: projectDetails,
+          collaborators: collaborators || [],
+          projectLink: link,
+        },
+      };
+      // @ts-ignore
+      const stableId = generateStableCredentialId(credentialData);
 
       // Convert dates to Unix timestamps
       const startTimestamp = new Date(startDate).getTime() / 1000;
@@ -102,7 +115,7 @@ const ProjectForm: React.FC = () => {
         try {
           await saveCredentialUpload(
             'Project', 
-            credentialAccount.publicKey.toBase58(),
+            stableId,
             projectFiles
           );
         } catch (mongoError) {

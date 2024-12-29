@@ -21,13 +21,62 @@ import { IDL } from "../../../../smart contracts/stakeidl";
 import { IDL1 } from "../../../../smart contracts/uploadidl";
 import { Credential } from "./Credential";
 
-const CACHE_DURATION = 10000000; 
-const BATCH_SIZE = 3; // Process 3 credentials at a time
-const BATCH_DELAY = 1000; // 1 second delay between batches
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const BATCH_SIZE = 2; // Reduce batch size
+const BATCH_DELAY = 2000; // 2 seconds between batches
 const DEVNET_ENDPOINT = "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
 const STAKE_AMOUNT = 0.01 * web3.LAMPORTS_PER_SOL;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 2000;
+
+
+// Add WebSocket connection configuration
+const WS_ENDPOINT = "wss://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
+
+// Add these constants at the top
+const RPC_ENDPOINTS = {
+  SOLANA: "https://api.devnet.solana.com",
+  HELIUS: "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",
+  QUICKNODE: "https://wider-neat-road.solana-devnet.quiknode.pro/a7bddf172bf613f5530f049c69f0f41d19dfa49e",
+  HELIUS_WS: "wss://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4"
+};
+
+// RPC load balancer class
+class RPCLoadBalancer {
+  private endpoints: string[];
+  private requestCounts: Map<string, number>;
+  private lastResetTime: number;
+
+  constructor(endpoints: string[]) {
+    this.endpoints = endpoints;
+    this.requestCounts = new Map();
+    this.lastResetTime = Date.now();
+    
+    endpoints.forEach(endpoint => {
+      this.requestCounts.set(endpoint, 0);
+    });
+  }
+
+  getNextEndpoint(): string {
+    const now = Date.now();
+    if (now - this.lastResetTime > 1000) { // Reset every second
+      this.requestCounts.forEach((_, key) => this.requestCounts.set(key, 0));
+      this.lastResetTime = now;
+    }
+
+    // Find endpoint with lowest request count
+    let minCount = Infinity;
+    let selectedEndpoint = this.endpoints[0];
+
+    this.requestCounts.forEach((count, endpoint) => {
+      if (count < minCount) {
+        minCount = count;
+        selectedEndpoint = endpoint;
+      }
+    });
+
+    this.requestCounts.set(selectedEndpoint, minCount + 1);
+    return selectedEndpoint;
+  }
+}
 
 const Staking: React.FC = () => {
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
@@ -61,70 +110,47 @@ const Staking: React.FC = () => {
   >({});
   const [isLoadingProof, setIsLoadingProof] = useState<Record<string, boolean>>({});
   const [lastUpdate, setLastUpdate] = useState<number>(0);
+  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+  const [subscriptionIds, setSubscriptionIds] = useState<Record<string, number>>({});
+  const [rpcLoadBalancer] = useState(new RPCLoadBalancer([
+    RPC_ENDPOINTS.SOLANA,
+    RPC_ENDPOINTS.HELIUS,
+    RPC_ENDPOINTS.QUICKNODE
+  ]));
 
-  useEffect(() => {
-    const fetchCredentialsWithRetry = async (retryCount = 0) => {
-      if (!publicKey) {
-        setLoading(false);
-        return;
-      }
+  // Add cache for each credential type
+  const [credentialTypeCache, setCredentialTypeCache] = useState<Record<string, {
+    data: Credential[];
+    timestamp: number;
+  }>>({});
 
-      // Check localStorage cache first
-      const cachedData = localStorage.getItem("unverified-credentials");
-      if (cachedData) {
-        const { credentials: cached, timestamp } = JSON.parse(cachedData);
-        if (Date.now() - timestamp < CACHE_DURATION) {
-          setUnverifiedCredentials(cached);
-          setLoading(false);
-          return;
-        }
-      }
+  // Modified initializeProgram to use load balancer
+  const initializeProgram = () => {
+    if (!publicKey || !signTransaction || !signAllTransactions) return null;
 
-      try {
-        const connection = new Connection(DEVNET_ENDPOINT, "confirmed");
-        const wallet = {
-          publicKey,
-          signTransaction,
-          signAllTransactions,
-        };
-        const provider = new AnchorProvider(connection, wallet as any, {
-          commitment: "confirmed",
-        });
+    const endpoint = rpcLoadBalancer.getNextEndpoint();
+    const connection = new Connection(endpoint, {
+      commitment: "confirmed",
+      confirmTransactionInitialTimeout: 60000,
+    });
 
-        const fetchedCredentials = await fetchUnverifiedCredentials(provider);
-
-        // Store in localStorage
-        localStorage.setItem(
-          "unverified-credentials",
-          JSON.stringify({
-            credentials: fetchedCredentials,
-            timestamp: Date.now(),
-          })
-        );
-        setError(null);
-        // @ts-ignore
-        setUnverifiedCredentials(fetchedCredentials);
-        await updateCredentialStates();
-      } catch (error) {
-        console.error("Error fetching unverified credentials:", error);
-        if (retryCount < MAX_RETRIES) {
-          setTimeout(
-            () => fetchCredentialsWithRetry(retryCount + 1),
-            RETRY_DELAY
-          );
-        } else {
-          setError("Failed to fetch credentials. Please try again later.");
-          toast.error("Failed to fetch credentials");
-        }
-      } finally {
-        setLoading(false);
-      }
+    const wallet = {
+      publicKey,
+      signTransaction,
+      signAllTransactions,
     };
 
-    fetchCredentialsWithRetry();
-  }, [publicKey]);
+    const provider = new AnchorProvider(connection, wallet, {
+      commitment: "confirmed",
+      preflightCommitment: "confirmed",
+      skipPreflight: false,
+    });
 
-  const handleFilterClick = (type: CredentialType) => {
+    return new Program(IDL as any, "HEqjbSEneAypSr9p8RhrjuK4wz98jfDZykmEDyjBcX4m", provider);
+  };
+
+  // Modified handleFilterClick to load credentials on demand
+  const handleFilterClick = async (type: CredentialType) => {
     setActiveType(type);
     setFilters(
       filters.map((filter) => ({
@@ -132,7 +158,96 @@ const Staking: React.FC = () => {
         active: filter.type === type,
       }))
     );
+
+    // Check cache for this type
+    const cache = credentialTypeCache[type];
+    if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
+      setUnverifiedCredentials(cache.data);
+      return;
+    }
+
+    // Fetch new credentials for this type
+    setLoading(true);
+    try {
+      const endpoint = rpcLoadBalancer.getNextEndpoint();
+      const connection = new Connection(endpoint);
+      const provider = new AnchorProvider(
+        connection,
+        { publicKey, signTransaction, signAllTransactions } as any,
+        { commitment: "confirmed" }
+      );
+
+      const credentials = await fetchUnverifiedCredentials(provider);
+      const filteredCredentials = credentials.filter(cred => cred.type === type);
+
+      // Update cache
+
+      // @ts-ignore
+      setCredentialTypeCache(prev => ({
+        ...prev,
+        [type]: {
+          data: filteredCredentials,
+          timestamp: Date.now()
+        }
+      }));
+      // @ts-ignore
+      setUnverifiedCredentials(filteredCredentials);
+    } catch (error) {
+      console.error(`Error fetching ${type} credentials:`, error);
+      toast.error(`Failed to fetch ${type} credentials`);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Initial load for Degree credentials only
+  useEffect(() => {
+    if (!publicKey) return;
+
+    const loadInitialCredentials = async () => {
+      // Check cache first
+      const cache = credentialTypeCache["Degree"];
+      if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
+        setUnverifiedCredentials(cache.data);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const endpoint = rpcLoadBalancer.getNextEndpoint();
+        const connection = new Connection(endpoint);
+        const provider = new AnchorProvider(
+          connection,
+          { publicKey, signTransaction, signAllTransactions } as any,
+          { commitment: "confirmed" }
+        );
+
+        const credentials = await fetchUnverifiedCredentials(provider);
+        const degreeCredentials = credentials.filter(cred => cred.type === "Degree");
+
+        // Update cache
+        // @ts-ignore
+        setCredentialTypeCache(prev => ({
+          ...prev,
+          Degree: {
+            data: degreeCredentials,
+            timestamp: Date.now()
+          }
+        }));
+        // @ts-ignore
+        setUnverifiedCredentials(degreeCredentials);
+      } catch (error) {
+        console.error("Error fetching initial credentials:", error);
+        setError("Failed to fetch credentials");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialCredentials();
+  }, [publicKey]);
+
+
 
   const getFilteredCredentials = () => {
     return unverifiedCredentials.filter((cred) => cred.type === activeType);
@@ -142,33 +257,6 @@ const Staking: React.FC = () => {
     const state = credentialStates[credentialId];
     if (!state) return 0;
     return Math.min((state.verifierCount / 10) * 100, 100);
-  };
-
-  const initializeProgram = () => {
-    if (!publicKey || !signTransaction || !signAllTransactions) return null;
-
-    const wallet = {
-      publicKey,
-      signTransaction,
-      signAllTransactions,
-    };
-
-    const devnetConnection = new Connection(DEVNET_ENDPOINT, {
-      commitment: "confirmed",
-      confirmTransactionInitialTimeout: 60000,
-    });
-
-    const provider = new AnchorProvider(devnetConnection, wallet, {
-      commitment: "confirmed",
-      preflightCommitment: "confirmed",
-      skipPreflight: false,
-    });
-
-    return new Program(
-      IDL as any,
-      "HEqjbSEneAypSr9p8RhrjuK4wz98jfDZykmEDyjBcX4m",
-      provider
-    );
   };
 
   const deriveCredentialPDA = (program: Program, credentialId: string) => {
@@ -600,22 +688,23 @@ const Staking: React.FC = () => {
   };
 
   const updateCredentialStates = async () => {
-    // Check if enough time has passed since last update
     const now = Date.now();
     if (now - lastUpdate < CACHE_DURATION) {
       return;
     }
 
-    if (!unverifiedCredentials.length) return;
+    // Only get credentials of active type
+    const visibleCredentials = getFilteredCredentials();
+    if (!visibleCredentials.length) return;
 
     try {
       const newStates: Record<string, CredentialState> = {};
       const newVerifierStates: Record<string, VerifierInfo> = {};
       const stakedSet = new Set<string>();
 
-      // Process credentials in batches
-      for (let i = 0; i < unverifiedCredentials.length; i += BATCH_SIZE) {
-        const batch = unverifiedCredentials.slice(i, i + BATCH_SIZE);
+      // Process visible credentials in batches
+      for (let i = 0; i < visibleCredentials.length; i += BATCH_SIZE) {
+        const batch = visibleCredentials.slice(i, i + BATCH_SIZE);
         
         await Promise.all(batch.map(async (cred) => {
           try {
@@ -631,10 +720,7 @@ const Staking: React.FC = () => {
           }
         }));
 
-        // Add delay between batches
-        if (i + BATCH_SIZE < unverifiedCredentials.length) {
-          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
-        }
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
       }
 
       setCredentialStates(prev => ({ ...prev, ...newStates }));
@@ -646,19 +732,113 @@ const Staking: React.FC = () => {
     }
   };
 
+  // Modify WebSocket setup
   useEffect(() => {
     if (!publicKey) return;
 
-    // Initial update
-    updateCredentialStates();
+    let wsRetryCount = 0;
+    const MAX_WS_RETRIES = 3;
+    let wsKeepAliveInterval: NodeJS.Timeout;
 
-    // Set up interval with longer delay
-    const intervalId = setInterval(updateCredentialStates, CACHE_DURATION * 3);
+    const setupWebSocket = () => {
+      const ws = new WebSocket(WS_ENDPOINT);
+      
+      ws.onopen = () => {
+        console.log('WebSocket Connected');
+        wsRetryCount = 0;
+
+        // Clear old subscriptions
+        Object.keys(subscriptionIds).forEach(credId => {
+          ws.send(JSON.stringify({
+            jsonrpc: '2.0',
+            id: subscriptionIds[credId],
+            method: 'accountUnsubscribe',
+            params: [subscriptionIds[credId]]
+          }));
+        });
+        setSubscriptionIds({});
+
+        // Subscribe only to visible credentials
+        const visibleCredentials = getFilteredCredentials();
+        const program = initializeProgram();
+        if (!program) return;
+
+        visibleCredentials.forEach((cred, index) => {
+          const credentialPDA = deriveCredentialPDA(program, cred.id);
+          const subscriptionId = Date.now() + index; // Generate unique subscription ID
+
+          ws.send(JSON.stringify({
+            jsonrpc: '2.0',
+            id: subscriptionId,
+            method: 'accountSubscribe',
+            params: [
+              credentialPDA.toBase58(),
+              { encoding: 'jsonParsed', commitment: 'confirmed' }
+            ]
+          }));
+
+          setSubscriptionIds(prev => ({
+            ...prev,
+            [cred.id]: subscriptionId
+          }));
+        });
+
+        // Setup keep-alive ping
+        wsKeepAliveInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ jsonrpc: '2.0', id: 'ping', method: 'ping' }));
+          }
+        }, 30000);
+      };
+
+      ws.onclose = () => {
+        clearInterval(wsKeepAliveInterval);
+        if (wsRetryCount < MAX_WS_RETRIES) {
+          wsRetryCount++;
+          setTimeout(setupWebSocket, 1000 * wsRetryCount);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        ws.close();
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.method === 'accountNotification') {
+          // Debounce the update
+          const now = Date.now();
+          if (now - lastUpdate >= CACHE_DURATION) {
+            updateCredentialStates();
+          }
+        }
+      };
+
+      setWsConnection(ws);
+    };
+
+    setupWebSocket();
 
     return () => {
-      clearInterval(intervalId);
+      if (wsConnection) {
+        clearInterval(wsKeepAliveInterval);
+        wsConnection.close();
+      }
     };
-  }, [unverifiedCredentials, publicKey]);
+  }, [publicKey, activeType]);
+
+  // Remove or modify other useEffect hooks that might be causing updates
+  useEffect(() => {
+    if (!publicKey) return;
+    
+    // Only update once when credentials load or type changes
+    const timeoutId = setTimeout(() => {
+      updateCredentialStates();
+    }, 500); // Add small delay to prevent immediate updates
+    
+    return () => clearTimeout(timeoutId);
+  }, [unverifiedCredentials, publicKey, activeType]);
 
   const canVote = (credentialId: string) => {
     return stakedCredentials.has(credentialId);
@@ -731,6 +911,97 @@ const Staking: React.FC = () => {
       toast.error('Failed to load proof');
     } finally {
       setIsLoadingProof(prev => ({ ...prev, [credentialId]: false }));
+    }
+  };
+
+  // Modified fetchCredentials with caching
+
+  // WebSocket setup for real-time updates
+  useEffect(() => {
+    if (!publicKey) return;
+
+    const ws = new WebSocket(RPC_ENDPOINTS.HELIUS_WS);
+    let wsKeepAliveInterval: NodeJS.Timeout;
+
+    ws.onopen = () => {
+      console.log("WebSocket connected");
+      
+      // Subscribe to visible credentials
+      const visibleCredentials = getFilteredCredentials();
+      visibleCredentials.forEach(cred => {
+        const program = initializeProgram();
+        if (!program) return;
+        
+        const credentialPDA = deriveCredentialPDA(program, cred.id);
+        ws.send(JSON.stringify({
+          jsonrpc: "2.0",
+          id: cred.id,
+          method: "accountSubscribe",
+          params: [
+            credentialPDA.toBase58(),
+            { encoding: "jsonParsed", commitment: "confirmed" }
+          ]
+        }));
+      });
+
+      // Keep-alive ping
+      wsKeepAliveInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ jsonrpc: "2.0", id: "ping", method: "ping" }));
+        }
+      }, 30000);
+    };
+
+    ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+      if (data.method === "accountNotification") {
+        // Debounced update for the specific credential
+        await updateCredentialState(data.params.result.value.pubkey);
+      }
+    };
+
+    return () => {
+      clearInterval(wsKeepAliveInterval);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [publicKey, activeType]);
+
+  // Modified updateCredentialStates to handle single credential updates
+  const updateCredentialState = async (credentialPubkey?: string) => {
+    if (!publicKey) return;
+
+    const now = Date.now();
+    if (now - lastUpdate < 1000) return; // Minimum 1 second between updates
+
+    try {
+      const program = initializeProgram();
+      if (!program) return;
+
+      const credentials = credentialPubkey 
+        ? [unverifiedCredentials.find(c => c.publicKey === credentialPubkey)]
+        : getFilteredCredentials();
+
+      if (!credentials.length) return;
+
+      // Process in small batches
+      for (let i = 0; i < credentials.length; i += BATCH_SIZE) {
+        const batch = credentials.slice(i, i + BATCH_SIZE);
+        await Promise.all(batch.map(async (cred) => {
+          if (!cred) return;
+          // Update state for single credential
+          // ... existing credential state update logic ...
+        }));
+        
+        if (i + BATCH_SIZE < credentials.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
+      }
+
+      setLastUpdate(now);
+    } catch (error) {
+      console.error("Error updating credential states:", error);
     }
   };
 

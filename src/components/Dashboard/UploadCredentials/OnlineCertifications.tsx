@@ -6,6 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
 import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -54,7 +55,16 @@ const OnlineCertificationsForm: React.FC = () => {
       setIsSubmitting(true);
       const program = getProgram();
       const certificateKeypair = web3.Keypair.generate();
-
+      const credentialData = {
+        type: "Certificate",
+        title: certificationName,
+        details: {
+          issuer: issuer,
+          proofLink: proofLink || "N/A",
+        },
+      };
+      // @ts-ignore
+      const stableId = generateStableCredentialId(credentialData);
       // Convert date to Unix timestamp
       const issueTimestamp = new Date(dateOfIssue).getTime() / 1000;
 
@@ -80,7 +90,7 @@ const OnlineCertificationsForm: React.FC = () => {
         try {
           await saveCredentialUpload(
             'Certification',
-            certificateKeypair.publicKey.toBase58(),
+            stableId,
             proof
           );
         } catch (mongoError) {

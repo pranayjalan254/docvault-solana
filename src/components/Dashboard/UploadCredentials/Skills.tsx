@@ -10,6 +10,7 @@ const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
 );
 const connection = new Connection("https://api.devnet.solana.com");
+import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 // Enum to match the contract's ProficiencyLevel
 type ProficiencyLevel = "Beginner" | "Intermediate" | "Advanced";
@@ -65,6 +66,16 @@ const SkillForm: React.FC = () => {
       setIsSubmitting(true);
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
+      const credentialData = {
+        type: "Skill",
+        title: skillName,
+        details: {
+          proficiencyLevel: proficiency,
+          proofLink: proofLink,
+        },
+      };
+      // @ts-ignore
+      const stableId = generateStableCredentialId(credentialData);
 
       // Create the enum variant object for Anchor
       const proficiencyEnum = { [proficiency.toLowerCase()]: {} };
@@ -87,7 +98,7 @@ const SkillForm: React.FC = () => {
               try {
                 await saveCredentialUpload(
                   'Skill',
-                  credentialAccount.publicKey.toBase58(),
+                  stableId,
                   proof
                 );
               } catch (mongoError) {

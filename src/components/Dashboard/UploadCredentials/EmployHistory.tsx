@@ -6,6 +6,7 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 const PROGRAM_ID = new PublicKey(
   "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
@@ -58,6 +59,17 @@ const EmploymentHistoryForm: React.FC = () => {
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
 
+      const credentialData = {
+        type: "Employment History",
+        title: jobTitle,
+        details: {
+          company: companyName,
+          position: jobTitle,
+        },
+      };
+      //@ts-ignore
+      const stableId = generateStableCredentialId(credentialData);
+
       // Convert dates to Unix timestamps
       const startTimestamp = new Date(startDate).getTime() / 1000;
 
@@ -92,7 +104,7 @@ const EmploymentHistoryForm: React.FC = () => {
         try {
           await saveCredentialUpload(
             'Employment',
-            credentialAccount.publicKey.toBase58(),
+            stableId,
             proof
           );
         } catch (mongoError) {
