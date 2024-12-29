@@ -6,6 +6,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
 import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 
 const PROGRAM_ID = new PublicKey(
@@ -56,6 +57,17 @@ const DegreeForm: React.FC = () => {
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
 
+      const credentialData = {
+        type: "Degree",
+        title: degreeName,
+        details: {
+          university: collegeName,
+          passoutYear: passoutYear,
+        },
+      };
+      // @ts-ignore
+      const stableId = generateStableCredentialId(credentialData);
+
       await program.methods
         .submitDegree(degreeName, collegeName, new BN(parseInt(passoutYear)))
         .accounts({
@@ -70,12 +82,12 @@ const DegreeForm: React.FC = () => {
         message: "Success",
         description: "Credential submitted successfully!",
       });
-      // Save PDF to MongoDB
- if (proof) {
+      
+      if (proof) {
         try {
           await saveCredentialUpload(
             'Degree',
-            credentialAccount.publicKey.toBase58(),
+            stableId,
             proof
           );
         } catch (mongoError) {

@@ -2,7 +2,7 @@ import { PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@project-serum/anchor";
 import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
-import { createHash } from "crypto";
+import { generateStableCredentialId } from "./generateStableIDS";
 
 const programId = new PublicKey("AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1");
 const getStatusString = (status: any) => {
@@ -11,13 +11,6 @@ const getStatusString = (status: any) => {
   return "Pending";
 };
 
-export function generateStableCredentialId(cred: Credential): string {
-  // Hash together fields that uniquely identify the credential.
-  const uniqueString = `${cred.type}-${cred.title}-${
-    cred.dateIssued
-  }-${JSON.stringify(cred.details)}`;
-  return createHash("sha256").update(uniqueString).digest("hex").slice(0, 16); // shorten if desired
-}
 
 export const fetchUnverifiedCredentials = async (
   provider: AnchorProvider

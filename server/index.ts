@@ -20,7 +20,7 @@ connectDB().catch(console.error);
 // API endpoint for credential upload
 app.post('/api/upload-credential', upload.single('file'), async (req: Request, res: Response): Promise<void> => {
   try {
-    const { type, publicKey } = req.body;
+    const { type, publicKey: credentialId } = req.body;
     const file = req.file;
 
     if (!file) {
@@ -30,7 +30,7 @@ app.post('/api/upload-credential', upload.single('file'), async (req: Request, r
 
     const credential = {
       credentialType: type,
-      credentialAccountPublicKey: publicKey,
+      credentialId,
       pdf: {
         data: file.buffer,
         contentType: file.mimetype,
@@ -48,9 +48,11 @@ app.post('/api/upload-credential', upload.single('file'), async (req: Request, r
 });
 
 // Add new endpoint to fetch credential proof
-app.get('/api/credential-proof/:id', async (req: Request, res: Response): Promise<void> => {
+app.get('/api/credential-proof/:credentialId', async (req: Request, res: Response): Promise<void> => {
   try {
-    const credential = await CredentialModel.findById(req.params.id);
+    const credential = await CredentialModel.findOne({ 
+      credentialId: req.params.credentialId 
+    });
     
     if (!credential || !credential.pdf) {
       res.status(404).json({ success: false, error: 'Proof not found' });

@@ -21,11 +21,13 @@ import { IDL } from "../../../../smart contracts/stakeidl";
 import { IDL1 } from "../../../../smart contracts/uploadidl";
 import { Credential } from "./Credential";
 
-const CACHE_DURATION = 0.5 * 60 * 1000;
+const CACHE_DURATION = 10000000; 
+const BATCH_SIZE = 3; // Process 3 credentials at a time
+const BATCH_DELAY = 1000; // 1 second delay between batches
+const DEVNET_ENDPOINT = "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
+const STAKE_AMOUNT = 0.01 * web3.LAMPORTS_PER_SOL;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
-const STAKE_AMOUNT = 0.01 * web3.LAMPORTS_PER_SOL;
-const DEVNET_ENDPOINT = "https://api.devnet.solana.com";
 
 const Staking: React.FC = () => {
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
@@ -58,6 +60,7 @@ const Staking: React.FC = () => {
     Record<string, TransactionState>
   >({});
   const [isLoadingProof, setIsLoadingProof] = useState<Record<string, boolean>>({});
+  const [lastUpdate, setLastUpdate] = useState<number>(0);
 
   useEffect(() => {
     const fetchCredentialsWithRetry = async (retryCount = 0) => {
@@ -425,7 +428,7 @@ const Staking: React.FC = () => {
       const verifierAccounts = await program.account.verifier.all([
         {
           memcmp: {
-            offset: 8, // After discriminator
+            offset: 8,
             bytes: credentialPDA.toBase58(),
           },
         },
@@ -597,41 +600,64 @@ const Staking: React.FC = () => {
   };
 
   const updateCredentialStates = async () => {
-    if (!unverifiedCredentials.length) return;
-    const newStates: Record<string, CredentialState> = {};
-    const newVerifierStates: Record<string, VerifierInfo> = {};
-    const stakedSet = new Set<string>();
-
-    for (const cred of unverifiedCredentials) {
-      const [state, isStaked, verifierInfo] = await Promise.all([
-        fetchCredentialState(cred.id),
-        checkIfStaked(cred.id),
-        fetchVerifierInfo(cred.id),
-      ]);
-
-      if (state) {
-        newStates[cred.id] = state;
-      }
-      if (isStaked) {
-        stakedSet.add(cred.id);
-      }
-      if (verifierInfo) {
-        newVerifierStates[cred.id] = verifierInfo;
-      }
+    // Check if enough time has passed since last update
+    const now = Date.now();
+    if (now - lastUpdate < CACHE_DURATION) {
+      return;
     }
 
-    setCredentialStates((prev) => ({ ...prev, ...newStates }));
-    setStakedCredentials(stakedSet);
-    setVerifierStates((prev) => ({ ...prev, ...newVerifierStates }));
+    if (!unverifiedCredentials.length) return;
+
+    try {
+      const newStates: Record<string, CredentialState> = {};
+      const newVerifierStates: Record<string, VerifierInfo> = {};
+      const stakedSet = new Set<string>();
+
+      // Process credentials in batches
+      for (let i = 0; i < unverifiedCredentials.length; i += BATCH_SIZE) {
+        const batch = unverifiedCredentials.slice(i, i + BATCH_SIZE);
+        
+        await Promise.all(batch.map(async (cred) => {
+          try {
+            const state = await fetchCredentialState(cred.id);
+            const isStaked = await checkIfStaked(cred.id);
+            const verifierInfo = await fetchVerifierInfo(cred.id);
+
+            if (state) newStates[cred.id] = state;
+            if (isStaked) stakedSet.add(cred.id);
+            if (verifierInfo) newVerifierStates[cred.id] = verifierInfo;
+          } catch (error) {
+            console.error(`Error processing credential ${cred.id}:`, error);
+          }
+        }));
+
+        // Add delay between batches
+        if (i + BATCH_SIZE < unverifiedCredentials.length) {
+          await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+        }
+      }
+
+      setCredentialStates(prev => ({ ...prev, ...newStates }));
+      setStakedCredentials(stakedSet);
+      setVerifierStates(prev => ({ ...prev, ...newVerifierStates }));
+      setLastUpdate(now);
+    } catch (error) {
+      console.error('Error updating credential states:', error);
+    }
   };
 
   useEffect(() => {
     if (!publicKey) return;
-    const intervalId = setInterval(() => {
-      updateCredentialStates();
-    }, 10000);
+
+    // Initial update
     updateCredentialStates();
-    return () => clearInterval(intervalId);
+
+    // Set up interval with longer delay
+    const intervalId = setInterval(updateCredentialStates, CACHE_DURATION * 3);
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [unverifiedCredentials, publicKey]);
 
   const canVote = (credentialId: string) => {
@@ -804,6 +830,15 @@ const Staking: React.FC = () => {
                   />
                 </div>
                 <div className="staking-actions">
+                {isStaked && (
+                    <button
+                      className="view-proof-button"
+                      onClick={() => handleViewProof(credential.id)}
+                      disabled={isLoadingProof[credential.id]}
+                    >
+                      {isLoadingProof[credential.id] ? 'Loading...' : 'View Proof'}
+                    </button>
+                  )}
                   <button
                     className="stake-button"
                     onClick={() => handleStake(credential.id)}
@@ -867,15 +902,7 @@ const Staking: React.FC = () => {
                       <InfoCircleOutlined className="info-icon" />
                     </Tooltip>
                   </div>
-                  {isStaked && (
-                    <button
-                      className="view-proof-button"
-                      onClick={() => handleViewProof(credential.id)}
-                      disabled={isLoadingProof[credential.id]}
-                    >
-                      {isLoadingProof[credential.id] ? 'Loading...' : 'View Proof'}
-                    </button>
-                  )}
+                  
                 </div>
               </div>
             );

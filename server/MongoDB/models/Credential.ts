@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ICredential extends Document {
   credentialType: 'Skill' | 'Degree' | 'Employment' | 'Project' | 'Certification';
-  credentialAccountPublicKey: string;
+  credentialId: string;
   pdf: {
     data: Buffer;
     contentType: string;
@@ -17,7 +17,7 @@ const CredentialSchema = new Schema({
     required: true,
     enum: ['Skill', 'Degree', 'Employment', 'Project', 'Certification']
   },
-  credentialAccountPublicKey: { type: String, required: true, index: true },
+  credentialId: { type: String, required: true, index: true },
   pdf: {
     data: { type: mongoose.Schema.Types.Buffer , required: true },
     contentType: { type: String },
