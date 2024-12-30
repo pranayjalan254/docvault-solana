@@ -13,7 +13,7 @@ const RPC_ENDPOINTS = [
 ];
 
 let currentEndpointIndex = 0;
-const CACHE_DURATION = 0.05 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 0.05 * 60 * 1000;
 const credentialCache = new Map<string, { data: Credential[], timestamp: number }>();
 
 const getNextEndpoint = () => {

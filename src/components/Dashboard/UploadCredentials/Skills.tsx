@@ -7,7 +7,7 @@ import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
 import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
 const PROGRAM_ID = new PublicKey(
-  "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
+  "ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX"
 );
 const connection = new Connection("https://api.devnet.solana.com");
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
@@ -76,6 +76,7 @@ const SkillForm: React.FC = () => {
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
+      const treasuryWallet = new web3.PublicKey("2i1dGn4DVACThYHYZJqW7eB3WVzHFrMdiC3ECP1hX3VJ");
 
       // Create the enum variant object for Anchor
       const proficiencyEnum = { [proficiency.toLowerCase()]: {} };
@@ -85,6 +86,7 @@ const SkillForm: React.FC = () => {
         .accounts({
           skill: credentialAccount.publicKey,
           user: publicKey,
+          treasury: treasuryWallet,
           systemProgram: web3.SystemProgram.programId,
         })
         .signers([credentialAccount])

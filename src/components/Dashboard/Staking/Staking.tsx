@@ -21,7 +21,7 @@ import { IDL } from "../../../../smart contracts/stakeidl";
 import { IDL1 } from "../../../../smart contracts/uploadidl";
 import { Credential } from "./Credential";
 
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 0.5 * 60 * 1000; // 5 minutes
 const BATCH_SIZE = 2; // Reduce batch size
 const BATCH_DELAY = 2000; // 2 seconds between batches
 const DEVNET_ENDPOINT = "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";

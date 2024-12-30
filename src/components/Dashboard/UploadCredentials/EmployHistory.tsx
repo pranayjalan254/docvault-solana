@@ -9,7 +9,7 @@ import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCrede
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 const PROGRAM_ID = new PublicKey(
-  "AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1"
+  "ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX"
 );
 const connection = new Connection("https://api.devnet.solana.com");
 
@@ -69,6 +69,7 @@ const EmploymentHistoryForm: React.FC = () => {
       };
       //@ts-ignore
       const stableId = generateStableCredentialId(credentialData);
+      const treasuryWallet = new web3.PublicKey("2i1dGn4DVACThYHYZJqW7eB3WVzHFrMdiC3ECP1hX3VJ");
 
       // Convert dates to Unix timestamps
       const startTimestamp = new Date(startDate).getTime() / 1000;
@@ -91,6 +92,7 @@ const EmploymentHistoryForm: React.FC = () => {
         .accounts({
           employment: credentialAccount.publicKey,
           user: publicKey,
+          treasury: treasuryWallet,
           systemProgram: web3.SystemProgram.programId,
         })
         .signers([credentialAccount])

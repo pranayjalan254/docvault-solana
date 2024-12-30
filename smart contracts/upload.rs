@@ -9,7 +9,7 @@ pub mod tablu {
     use super::*;
 
     const UPLOAD_FEE: u64 = 1_000_000_000; // 1 SOL in lamports
-    pub const TREASURY_WALLET: &str = "2i1dGn4DVACThYHYZJqW7eB3WVzHFrMdiC3ECP1hX3VJ"; // Replace with actual address
+    pub const TREASURY_WALLET: &str = "2i1dGn4DVACThYHYZJqW7eB3WVzHFrMdiC3ECP1hX3VJ"; 
 
     pub fn submit_degree(
         ctx: Context<DegreeSubmitCredential>,
