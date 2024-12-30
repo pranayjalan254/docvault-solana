@@ -10,7 +10,7 @@ import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
 
 const PROGRAM_ID = new PublicKey(
-  "ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX"
+  "apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb"
 );
 const connection = new Connection("https://api.devnet.solana.com");
 
@@ -68,7 +68,7 @@ const DegreeForm: React.FC = () => {
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
 
-      const treasuryWallet = new web3.PublicKey("2i1dGn4DVACThYHYZJqW7eB3WVzHFrMdiC3ECP1hX3VJ");
+      const treasuryWallet = new web3.PublicKey("C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU");
 
       await program.methods
         .submitDegree(degreeName, collegeName, new BN(parseInt(passoutYear)))

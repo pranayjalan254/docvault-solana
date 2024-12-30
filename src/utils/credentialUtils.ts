@@ -2,7 +2,7 @@ import { PublicKey, Connection } from "@solana/web3.js";
 import { Program, AnchorProvider } from "@project-serum/anchor";
 import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 
-const programId = new PublicKey("ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX");
+const programId = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 
 // RPC endpoints

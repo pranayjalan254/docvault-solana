@@ -21,17 +21,15 @@ import { IDL } from "../../../../smart contracts/stakeidl";
 import { IDL1 } from "../../../../smart contracts/uploadidl";
 import { Credential } from "./Credential";
 
-const CACHE_DURATION = 0.5 * 60 * 1000; // 5 minutes
-const BATCH_SIZE = 2; // Reduce batch size
-const BATCH_DELAY = 2000; // 2 seconds between batches
+const CACHE_DURATION = 0.05 * 60 * 1000; 
+const BATCH_SIZE = 2; 
+const BATCH_DELAY = 2000; 
 const DEVNET_ENDPOINT = "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
 const STAKE_AMOUNT = 0.01 * web3.LAMPORTS_PER_SOL;
-
 
 // Add WebSocket connection configuration
 const WS_ENDPOINT = "wss://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
 
-// Add these constants at the top
 const RPC_ENDPOINTS = {
   SOLANA: "https://api.devnet.solana.com",
   HELIUS: "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",

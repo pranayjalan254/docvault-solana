@@ -4,13 +4,26 @@ import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 import { generateStableCredentialId } from "./generateStableIDS";
 
-const programId = new PublicKey("ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX");
+const programId = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 const getStatusString = (status: any) => {
   if (status?.verified) return "Verified";
   if (status?.rejected) return "Rejected";
   return "Pending";
 };
 
+// Add this utility function at the top
+const safeParseTimestamp = (timestamp: number): string => {
+  try {
+    // Ensure the timestamp is within safe JavaScript integer range
+    if (timestamp > Number.MAX_SAFE_INTEGER) {
+      return new Date().toLocaleDateString(); // Fallback to current date if timestamp is too large
+    }
+    return new Date(timestamp * 1000).toLocaleDateString();
+  } catch (error) {
+    console.error("Error parsing timestamp:", error);
+    return "Invalid Date";
+  }
+};
 
 export const fetchUnverifiedCredentials = async (
   provider: AnchorProvider
@@ -140,15 +153,11 @@ export const fetchUnverifiedCredentials = async (
           );
 
           if (!decoded.status.verified && !decoded.status.rejected) {
-            const startDate = new Date(
-              decoded.startDate.toNumber() * 1000
-            ).toLocaleDateString();
+            const startDate = safeParseTimestamp(decoded.startDate);
             let endDateStr = "Present";
 
             if (decoded.endDate) {
-              endDateStr = new Date(
-                decoded.endDate.toNumber() * 1000
-              ).toLocaleDateString();
+              endDateStr = safeParseTimestamp(decoded.endDate);
             }
 
             return {
@@ -165,6 +174,11 @@ export const fetchUnverifiedCredentials = async (
           }
         } catch (err) {
           console.error("Error decoding project account:", err);
+          // Log additional details for debugging
+          if (err instanceof Error) {
+            console.error("Error details:", err.message);
+            console.error("Error stack:", err.stack);
+          }
         }
         return null;
       })

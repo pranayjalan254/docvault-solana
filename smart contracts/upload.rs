@@ -2,14 +2,14 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
 use anchor_lang::system_program;
 
-declare_id!("ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX");
+declare_id!("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 
 #[program]
 pub mod tablu {
     use super::*;
 
-    const UPLOAD_FEE: u64 = 1_000_000_000; // 1 SOL in lamports
-    pub const TREASURY_WALLET: &str = "2i1dGn4DVACThYHYZJqW7eB3WVzHFrMdiC3ECP1hX3VJ"; 
+    const UPLOAD_FEE: u64 = 5_500_449; 
+    pub const TREASURY_WALLET: &str = "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"; 
 
     pub fn submit_degree(
         ctx: Context<DegreeSubmitCredential>,
@@ -55,8 +55,8 @@ pub fn submit_project(
     project_name: String,
     project_description: String,
     collaborators: Option<Vec<String>>,
-    start_date: i64,
-    end_date: Option<i64>,
+    start_date: i32, // Change from i64 to i32
+    end_date: Option<i32>, // Change from Option<i64> to Option<i32>
     currently_working: Option<bool>,
     project_link: String,
 ) -> Result<()> {
@@ -78,14 +78,14 @@ pub fn submit_project(
     project.end_date = end_date;
     project.currently_working = currently_working;
     project.project_link = project_link;
-    project.timestamp = Clock::get()?.unix_timestamp;
+    project.timestamp = Clock::get()?.unix_timestamp as i32; // Cast to i32
     project.status = VerificationStatus::Pending;
     project.verifiers = Vec::new();
 
     emit!(ProjectSubmitted {
         user: *ctx.accounts.user.key,
         project_name,
-        timestamp: project.timestamp,
+        timestamp: project.timestamp,  // Now matches i32
     });
 
     Ok(())
@@ -377,11 +377,11 @@ pub struct ProjectCredential {
     pub project_name: String,
     pub project_description: String,
     pub collaborators: Option<Vec<String>>,
-    pub start_date: i64,
-    pub end_date: Option<i64>,
+    pub start_date: i32, // Change from i64 to i32
+    pub end_date: Option<i32>, // Change from Option<i64> to Option<i32>
     pub currently_working: Option<bool>,
     pub project_link: String,
-    pub timestamp: i64,
+    pub timestamp: i32, // Change from i64 to i32
     pub status: VerificationStatus,
     pub verifiers: Vec<Pubkey>,
 }
@@ -453,7 +453,7 @@ pub struct DegreeCredentialSubmitted {
 pub struct ProjectSubmitted {
     pub user: Pubkey,
     pub project_name: String,
-    pub timestamp: i64,
+    pub timestamp: i32,  // Change from i64 to i32
 }
 
 #[event]
