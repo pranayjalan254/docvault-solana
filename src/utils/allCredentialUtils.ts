@@ -4,7 +4,7 @@ import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 import { generateStableCredentialId } from "./generateStableIDS";
 
-const programId = new PublicKey("AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1");
+const programId = new PublicKey("ChbUoMyTEmzcsF7SqmThQzuerwrp7wZW3TwVMEzkGkAX");
 const getStatusString = (status: any) => {
   if (status?.verified) return "Verified";
   if (status?.rejected) return "Rejected";

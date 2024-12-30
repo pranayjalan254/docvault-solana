@@ -50,7 +50,7 @@ class RPCLoadBalancer {
     this.requestCounts = new Map();
     this.lastResetTime = Date.now();
     
-    endpoints.forEach(endpoint => {
+    endpoints.forEach(endpoint => { 
       this.requestCounts.set(endpoint, 0);
     });
   }
