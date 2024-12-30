@@ -4,7 +4,18 @@ import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 import { generateStableCredentialId } from "./generateStableIDS";
 
+// Update the program ID to match the one in upload.rs
 const programId = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
+
+// Adjust the account sizes to match the struct sizes in upload.rs
+const accountSizes = {
+  degree: 313,      // 8 + 32 + 128 + 128 + 8 + 1 + 8
+  employment: 578,  // 8 + 32 + 128 + 128 + 8 + 8 + 1 + 8 + 1 + 256
+  project: 1602,    // 8 + 32 + 256 + 512 + 256 + 8 + 8 + 1 + 256 + 8 + 1 + 256
+  certificate: 825, // 8 + 32 + 128 + 128 + 8 + 256 + 8 + 1 + 256
+  skill: 690       // 8 + 32 + 128 + 1 + 256 + 8 + 1 + 256
+};
+
 const getStatusString = (status: any) => {
   if (status?.verified) return "Verified";
   if (status?.rejected) return "Rejected";
@@ -28,6 +39,7 @@ const safeParseTimestamp = (timestamp: number): string => {
 export const fetchUnverifiedCredentials = async (
   provider: AnchorProvider
 ): Promise<Credential[]> => {
+  // Update to use the correct IDL
   const program = new Program(IDL as any, programId, provider);
   let credentials: Credential[] = [];
 
@@ -37,7 +49,7 @@ export const fetchUnverifiedCredentials = async (
       {
         filters: [
           {
-            dataSize: 304, // 8 + 32 + 128 + 128 + 8
+            dataSize: accountSizes.degree,
           },
         ],
       }
@@ -83,7 +95,7 @@ export const fetchUnverifiedCredentials = async (
       {
         filters: [
           {
-            dataSize: 578, // 8 + 32 + 128 + 128 + 8 + 8 + 1 + 8 + 1 + 256
+            dataSize: accountSizes.employment,
           },
         ],
       }
@@ -138,7 +150,7 @@ export const fetchUnverifiedCredentials = async (
       {
         filters: [
           {
-            dataSize: 1602, // 8 + 32 + 256 + 512 + 256 + 8 + 8 + 1 + 256 + 8 + 1 + 256
+            dataSize: accountSizes.project,
           },
         ],
       }
@@ -195,7 +207,7 @@ export const fetchUnverifiedCredentials = async (
       {
         filters: [
           {
-            dataSize: 825, // 8 + 32 + 128 + 128 + 8 + 256 + 8 + 1 + 256
+            dataSize: accountSizes.certificate,
           },
         ],
       }
@@ -242,7 +254,7 @@ export const fetchUnverifiedCredentials = async (
       {
         filters: [
           {
-            dataSize: 690, // 8 + 32 + 128 + 1 + 256 + 8 + 1 + 256
+            dataSize: accountSizes.skill,
           },
         ],
       }

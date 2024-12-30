@@ -21,7 +21,7 @@ import { IDL } from "../../../../smart contracts/stakeidl";
 import { IDL1 } from "../../../../smart contracts/uploadidl";
 import { Credential } from "./Credential";
 
-const CACHE_DURATION = 0.05 * 60 * 1000; 
+const CACHE_DURATION = 2000;
 const BATCH_SIZE = 2; 
 const BATCH_DELAY = 2000; 
 const DEVNET_ENDPOINT = "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
@@ -55,12 +55,10 @@ class RPCLoadBalancer {
 
   getNextEndpoint(): string {
     const now = Date.now();
-    if (now - this.lastResetTime > 1000) { // Reset every second
+    if (now - this.lastResetTime > 1000) { 
       this.requestCounts.forEach((_, key) => this.requestCounts.set(key, 0));
       this.lastResetTime = now;
     }
-
-    // Find endpoint with lowest request count
     let minCount = Infinity;
     let selectedEndpoint = this.endpoints[0];
 
@@ -109,7 +107,6 @@ const Staking: React.FC = () => {
   const [isLoadingProof, setIsLoadingProof] = useState<Record<string, boolean>>({});
   const [lastUpdate, setLastUpdate] = useState<number>(0);
   const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
-  const [subscriptionIds, setSubscriptionIds] = useState<Record<string, number>>({});
   const [rpcLoadBalancer] = useState(new RPCLoadBalancer([
     RPC_ENDPOINTS.SOLANA,
     RPC_ENDPOINTS.HELIUS,
@@ -178,8 +175,6 @@ const Staking: React.FC = () => {
       const credentials = await fetchUnverifiedCredentials(provider);
       const filteredCredentials = credentials.filter(cred => cred.type === type);
 
-      // Update cache
-
       // @ts-ignore
       setCredentialTypeCache(prev => ({
         ...prev,
@@ -222,8 +217,6 @@ const Staking: React.FC = () => {
 
         const credentials = await fetchUnverifiedCredentials(provider);
         const degreeCredentials = credentials.filter(cred => cred.type === "Degree");
-
-        // Update cache
         // @ts-ignore
         setCredentialTypeCache(prev => ({
           ...prev,
@@ -735,8 +728,9 @@ const Staking: React.FC = () => {
     if (!publicKey) return;
 
     let wsRetryCount = 0;
-    const MAX_WS_RETRIES = 3;
+    const MAX_WS_RETRIES = 5;
     let wsKeepAliveInterval: NodeJS.Timeout;
+    let reconnectTimeout: NodeJS.Timeout;
 
     const setupWebSocket = () => {
       const ws = new WebSocket(WS_ENDPOINT);
@@ -745,71 +739,57 @@ const Staking: React.FC = () => {
         console.log('WebSocket Connected');
         wsRetryCount = 0;
 
-        // Clear old subscriptions
-        Object.keys(subscriptionIds).forEach(credId => {
-          ws.send(JSON.stringify({
-            jsonrpc: '2.0',
-            id: subscriptionIds[credId],
-            method: 'accountUnsubscribe',
-            params: [subscriptionIds[credId]]
-          }));
-        });
-        setSubscriptionIds({});
-
-        // Subscribe only to visible credentials
+        // Subscribe to all visible credentials at once
         const visibleCredentials = getFilteredCredentials();
         const program = initializeProgram();
         if (!program) return;
 
-        visibleCredentials.forEach((cred, index) => {
+        const subscriptionRequests = visibleCredentials.map((cred, index) => {
           const credentialPDA = deriveCredentialPDA(program, cred.id);
-          const subscriptionId = Date.now() + index; // Generate unique subscription ID
-
-          ws.send(JSON.stringify({
+          return {
             jsonrpc: '2.0',
-            id: subscriptionId,
+            id: Date.now() + index,
             method: 'accountSubscribe',
             params: [
               credentialPDA.toBase58(),
-              { encoding: 'jsonParsed', commitment: 'confirmed' }
+              { encoding: 'jsonParsed', commitment: 'processed' } // Change to 'processed' for faster updates
             ]
-          }));
-
-          setSubscriptionIds(prev => ({
-            ...prev,
-            [cred.id]: subscriptionId
-          }));
+          };
         });
 
-        // Setup keep-alive ping
+        // Send all subscription requests at once
+        subscriptionRequests.forEach(req => ws.send(JSON.stringify(req)));
+
+        // Keep-alive ping with shorter interval
         wsKeepAliveInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ jsonrpc: '2.0', id: 'ping', method: 'ping' }));
           }
-        }, 30000);
+        }, 15000); // Reduce to 15 seconds
+      };
+
+      // Optimize message handling with debouncing
+      const debouncedUpdate = debounce(async (accountKey: string) => {
+        await updateCredentialState(accountKey);
+      }, STATUS_UPDATE_DEBOUNCE);
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.method === 'accountNotification') {
+            const accountKey = data.params.result.value.pubkey;
+            debouncedUpdate(accountKey);
+          }
+        } catch (error) {
+          console.error('WebSocket message processing error:', error);
+        }
       };
 
       ws.onclose = () => {
         clearInterval(wsKeepAliveInterval);
         if (wsRetryCount < MAX_WS_RETRIES) {
           wsRetryCount++;
-          setTimeout(setupWebSocket, 1000 * wsRetryCount);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        ws.close();
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data.method === 'accountNotification') {
-          // Debounce the update
-          const now = Date.now();
-          if (now - lastUpdate >= CACHE_DURATION) {
-            updateCredentialStates();
-          }
+          reconnectTimeout = setTimeout(setupWebSocket, WS_RETRY_INTERVAL * wsRetryCount);
         }
       };
 
@@ -821,6 +801,7 @@ const Staking: React.FC = () => {
     return () => {
       if (wsConnection) {
         clearInterval(wsKeepAliveInterval);
+        clearTimeout(reconnectTimeout);
         wsConnection.close();
       }
     };
@@ -1187,3 +1168,16 @@ const Staking: React.FC = () => {
 };
 
 export default Staking;
+
+// Update these constants for more responsive updates
+const WS_RETRY_INTERVAL = 3000; // 3 seconds between retries
+const STATUS_UPDATE_DEBOUNCE = 500; // 500ms debounce for status updates
+
+// Add this utility function at the top
+const debounce = (func: Function, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+};

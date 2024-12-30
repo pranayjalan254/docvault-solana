@@ -377,11 +377,11 @@ pub struct ProjectCredential {
     pub project_name: String,
     pub project_description: String,
     pub collaborators: Option<Vec<String>>,
-    pub start_date: i32, // Change from i64 to i32
-    pub end_date: Option<i32>, // Change from Option<i64> to Option<i32>
+    pub start_date: i32,
+    pub end_date: Option<i32>,
     pub currently_working: Option<bool>,
     pub project_link: String,
-    pub timestamp: i32, // Change from i64 to i32
+    pub timestamp: i32,
     pub status: VerificationStatus,
     pub verifiers: Vec<Pubkey>,
 }
@@ -453,7 +453,7 @@ pub struct DegreeCredentialSubmitted {
 pub struct ProjectSubmitted {
     pub user: Pubkey,
     pub project_name: String,
-    pub timestamp: i32,  // Change from i64 to i32
+    pub timestamp: i32, 
 }
 
 #[event]
