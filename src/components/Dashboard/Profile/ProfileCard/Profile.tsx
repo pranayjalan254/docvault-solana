@@ -73,7 +73,9 @@ const Profile: React.FC = () => {
 
       try {
         const connection = new Connection(
-          "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",
+          `https://devnet.helius-rpc.com/?api-key=${
+            import.meta.env.VITE_HELIUS_API_KEY
+          }`,
           "confirmed"
         );
         const provider = new AnchorProvider(connection, wallet as any, {

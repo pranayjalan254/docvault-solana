@@ -8,13 +8,18 @@ import { CredentialModalProps as Credential } from "../components/Dashboard/Prof
 // RPC endpoints
 const RPC_ENDPOINTS = [
   "https://api.devnet.solana.com",
-  "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",
-  "https://wider-neat-road.solana-devnet.quiknode.pro/a7bddf172bf613f5530f049c69f0f41d19dfa49e"
+  `https://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`,
+  "https://wider-neat-road.solana-devnet.quiknode.pro/a7bddf172bf613f5530f049c69f0f41d19dfa49e",
 ];
 
 let currentEndpointIndex = 0;
 const CACHE_DURATION = 0.05 * 60 * 1000;
-const credentialCache = new Map<string, { data: Credential[], timestamp: number }>();
+const credentialCache = new Map<
+  string,
+  { data: Credential[]; timestamp: number }
+>();
 
 const getNextEndpoint = () => {
   currentEndpointIndex = (currentEndpointIndex + 1) % RPC_ENDPOINTS.length;
@@ -41,15 +46,14 @@ export const fetchAllCredentials = async (
   try {
     // Use a different endpoint for each request
     const connection = new Connection(getNextEndpoint());
-    const newProvider = new AnchorProvider(
-      connection,
-      provider.wallet,
-      { commitment: "confirmed" }
-    );
+    const newProvider = new AnchorProvider(connection, provider.wallet, {
+      commitment: "confirmed",
+    });
     const program = new Program(IDL as any, programId, newProvider);
 
     // Add delay between requests
-    const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const delay = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
 
     // Fetch credentials sequentially with delays
     const degrees = await program.account.userDegreeCredential.all([
@@ -80,7 +84,9 @@ export const fetchAllCredentials = async (
       ...degrees.map((d: any) => ({
         type: "Degree",
         title: d.account.degreeName,
-        dateIssued: new Date(d.account.timestamp.toNumber() * 1000).toLocaleDateString(),
+        dateIssued: new Date(
+          d.account.timestamp.toNumber() * 1000
+        ).toLocaleDateString(),
         status: getStatusString(d.account.status),
         details: {
           university: d.account.collegeName,
@@ -90,7 +96,9 @@ export const fetchAllCredentials = async (
       ...projects.map((p: any) => ({
         type: "Project",
         title: p.account.projectName,
-        dateIssued: new Date(p.account.timestamp.toNumber() * 1000).toLocaleDateString(),
+        dateIssued: new Date(
+          p.account.timestamp.toNumber() * 1000
+        ).toLocaleDateString(),
         status: getStatusString(p.account.status),
         details: {
           projectUrl: p.account.projectLink,
@@ -100,7 +108,9 @@ export const fetchAllCredentials = async (
       ...skills.map((s: any) => ({
         type: "Skill",
         title: s.account.skillName,
-        dateIssued: new Date(s.account.timestamp.toNumber() * 1000).toLocaleDateString(),
+        dateIssued: new Date(
+          s.account.timestamp.toNumber() * 1000
+        ).toLocaleDateString(),
         status: getStatusString(s.account.status),
         details: {
           skillLevel: s.account.proficiencyLevel?.toString(),
@@ -110,7 +120,9 @@ export const fetchAllCredentials = async (
       ...employments.map((e: any) => ({
         type: "Employment History",
         title: e.account.jobTitle,
-        dateIssued: `${new Date(e.account.startDate.toNumber() * 1000).toLocaleDateString()} - ${
+        dateIssued: `${new Date(
+          e.account.startDate.toNumber() * 1000
+        ).toLocaleDateString()} - ${
           e.account.currentlyWorking
             ? "Present"
             : e.account.endDate
@@ -126,7 +138,9 @@ export const fetchAllCredentials = async (
       ...certificates.map((c: any) => ({
         type: "Certification",
         title: c.account.certificationName,
-        dateIssued: new Date(c.account.dateOfIssue.toNumber() * 1000).toLocaleDateString(),
+        dateIssued: new Date(
+          c.account.dateOfIssue.toNumber() * 1000
+        ).toLocaleDateString(),
         status: getStatusString(c.account.status),
         details: {
           certificationProvider: c.account.issuer,
@@ -138,7 +152,7 @@ export const fetchAllCredentials = async (
     // Cache the results
     credentialCache.set(cacheKey, {
       data: credentials,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
 
     return credentials;

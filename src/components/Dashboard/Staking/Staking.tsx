@@ -24,25 +24,21 @@ import { Credential } from "./Credential";
 const CACHE_DURATION = 2000;
 const BATCH_SIZE = 2;
 const BATCH_DELAY = 2000;
-const DEVNET_ENDPOINT =
-  "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
-const STAKE_AMOUNT = 0.01 * web3.LAMPORTS_PER_SOL;
-
-// Add WebSocket connection configuration
-const WS_ENDPOINT =
-  "wss://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4";
+const STAKE_AMOUNT = 0.1 * web3.LAMPORTS_PER_SOL;
 
 const RPC_ENDPOINTS = {
   SOLANA: "https://api.devnet.solana.com",
-  HELIUS:
-    "https://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",
-  QUICKNODE:
-    "https://wider-neat-road.solana-devnet.quiknode.pro/a7bddf172bf613f5530f049c69f0f41d19dfa49e",
-  HELIUS_WS:
-    "wss://devnet.helius-rpc.com/?api-key=ea94ee9f-e6ca-4248-ae8a-65938ad4c6b4",
+  HELIUS: `https://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`,
+  QUICKNODE: `https://cosmopolitan-rough-flower.solana-devnet.quiknode.pro/${
+    import.meta.env.VITE_QUICKNODE_API_KEY
+  }`,
+  HELIUS_WS: `wss://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`,
 };
 
-// RPC load balancer class
 class RPCLoadBalancer {
   private endpoints: string[];
   private requestCounts: Map<string, number>;
@@ -113,7 +109,7 @@ const Staking: React.FC = () => {
     {}
   );
   const [lastUpdate, setLastUpdate] = useState<number>(0);
-  const [wsConnection, setWsConnection] = useState<WebSocket | null>(null);
+  const [_wsConnection, setWsConnection] = useState<WebSocket | null>(null);
   const [rpcLoadBalancer] = useState(
     new RPCLoadBalancer([
       RPC_ENDPOINTS.SOLANA,
@@ -122,7 +118,6 @@ const Staking: React.FC = () => {
     ])
   );
 
-  // Add cache for each credential type
   const [credentialTypeCache, setCredentialTypeCache] = useState<
     Record<
       string,
@@ -162,7 +157,6 @@ const Staking: React.FC = () => {
     );
   };
 
-  // Modified handleFilterClick to load credentials on demand
   const handleFilterClick = async (type: CredentialType) => {
     setActiveType(type);
     setFilters(
@@ -172,14 +166,11 @@ const Staking: React.FC = () => {
       }))
     );
 
-    // Check cache for this type
     const cache = credentialTypeCache[type];
     if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
       setUnverifiedCredentials(cache.data);
       return;
     }
-
-    // Fetch new credentials for this type
     setLoading(true);
     try {
       const endpoint = rpcLoadBalancer.getNextEndpoint();
@@ -213,7 +204,6 @@ const Staking: React.FC = () => {
     }
   };
 
-  // Initial load for Degree credentials only
   useEffect(() => {
     if (!publicKey) return;
 
@@ -297,8 +287,6 @@ const Staking: React.FC = () => {
     if (!program || !publicKey) return null;
     try {
       const credentialPDA = deriveCredentialPDA(program, credentialId);
-      console.log("Initializing credential with ID:", credentialId);
-      console.log("Derived PDA:", credentialPDA.toBase58());
 
       // Check if credential account already exists
       const exists = await checkCredentialAccountExists(credentialPDA);
@@ -324,7 +312,7 @@ const Staking: React.FC = () => {
   };
 
   const confirmTransaction = async (signature: string) => {
-    const connection = new Connection(DEVNET_ENDPOINT);
+    const connection = new Connection(RPC_ENDPOINTS.HELIUS);
     try {
       await connection.confirmTransaction(signature, "confirmed");
       return true;
@@ -477,7 +465,7 @@ const Staking: React.FC = () => {
       signAllTransactions,
     };
 
-    const devnetConnection = new Connection(DEVNET_ENDPOINT, {
+    const devnetConnection = new Connection(RPC_ENDPOINTS.HELIUS, {
       commitment: "confirmed",
       confirmTransactionInitialTimeout: 60000,
     });
@@ -571,7 +559,6 @@ const Staking: React.FC = () => {
       const nowSeconds = Math.floor(Date.now() / 1000);
       const fiveDaysInSecs = 5 * 24 * 60 * 60;
 
-      // Call refund if 5 days have passed without finalization
       if (
         credentialStateFetched &&
         !credentialStateFetched.isFinalized &&
@@ -687,7 +674,6 @@ const Staking: React.FC = () => {
       );
       const account = await program.account.verifier.fetch(verifierPDA);
 
-      // Include votedAuthentic in the return object
       return {
         hasVoted: (account as any).hasVoted,
         hasClaimed: (account as any).hasClaimed,
@@ -713,7 +699,6 @@ const Staking: React.FC = () => {
       const newVerifierStates: Record<string, VerifierInfo> = {};
       const stakedSet = new Set<string>();
 
-      // Process visible credentials in batches
       for (let i = 0; i < visibleCredentials.length; i += BATCH_SIZE) {
         const batch = visibleCredentials.slice(i, i + BATCH_SIZE);
 
@@ -745,103 +730,113 @@ const Staking: React.FC = () => {
     }
   };
 
-  // Modify WebSocket setup
-  useEffect(() => {
-    if (!publicKey) return;
+  function subscribeWebSocket({
+    commitment,
+    keepAliveMs,
 
-    let wsRetryCount = 0;
-    const MAX_WS_RETRIES = 5;
-    let wsKeepAliveInterval: NodeJS.Timeout;
-    let reconnectTimeout: NodeJS.Timeout;
-
-    const setupWebSocket = () => {
-      const ws = new WebSocket(WS_ENDPOINT);
+    visibleCredentials,
+    initializeProgram,
+    updateCredentialState,
+    setWsConnection,
+  }: {
+    commitment: "processed" | "confirmed";
+    keepAliveMs: number;
+    enableRetry?: boolean;
+    visibleCredentials: Credential[];
+    initializeProgram: () => Program | null;
+    updateCredentialState: (accountKey?: string) => Promise<void>;
+    setWsConnection?: React.Dispatch<React.SetStateAction<WebSocket | null>>;
+  }) {
+    const setup = () => {
+      const ws = new WebSocket(RPC_ENDPOINTS.HELIUS_WS);
+      let wsKeepAliveInterval: NodeJS.Timeout;
 
       ws.onopen = () => {
-        console.log("WebSocket Connected");
-        wsRetryCount = 0;
-
-        // Subscribe to all visible credentials at once
-        const visibleCredentials = getFilteredCredentials();
-        const program = initializeProgram();
+        if (!visibleCredentials.length) return;
+        const program = initializeProgram?.();
         if (!program) return;
 
-        const subscriptionRequests = visibleCredentials.map((cred, index) => {
+        visibleCredentials.forEach((cred, index) => {
           const credentialPDA = deriveCredentialPDA(program, cred.id);
-          return {
+          const req = {
             jsonrpc: "2.0",
             id: Date.now() + index,
             method: "accountSubscribe",
             params: [
               credentialPDA.toBase58(),
-              { encoding: "jsonParsed", commitment: "processed" }, // Change to 'processed' for faster updates
+              { encoding: "jsonParsed", commitment },
             ],
           };
+          ws.send(JSON.stringify(req));
         });
 
-        // Send all subscription requests at once
-        subscriptionRequests.forEach((req) => ws.send(JSON.stringify(req)));
-
-        // Keep-alive ping with shorter interval
         wsKeepAliveInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(
               JSON.stringify({ jsonrpc: "2.0", id: "ping", method: "ping" })
             );
           }
-        }, 15000); // Reduce to 15 seconds
+        }, keepAliveMs);
       };
 
-      // Optimize message handling with debouncing
-      const debouncedUpdate = debounce(async (accountKey: string) => {
-        await updateCredentialState(accountKey);
-      }, STATUS_UPDATE_DEBOUNCE);
-
-      ws.onmessage = (event) => {
+      ws.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.method === "accountNotification") {
             const accountKey = data.params.result.value.pubkey;
-            debouncedUpdate(accountKey);
+            await updateCredentialState(accountKey);
           }
-        } catch (error) {
-          console.error("WebSocket message processing error:", error);
+        } catch {
+          console.error("Error parsing WebSocket message");
         }
       };
 
-      ws.onclose = () => {
-        clearInterval(wsKeepAliveInterval);
-        if (wsRetryCount < MAX_WS_RETRIES) {
-          wsRetryCount++;
-          reconnectTimeout = setTimeout(
-            setupWebSocket,
-            WS_RETRY_INTERVAL * wsRetryCount
-          );
-        }
-      };
-
-      setWsConnection(ws);
+      setWsConnection?.(ws);
     };
 
-    setupWebSocket();
+    setup();
+  }
 
-    return () => {
-      if (wsConnection) {
-        clearInterval(wsKeepAliveInterval);
-        clearTimeout(reconnectTimeout);
-        wsConnection.close();
-      }
-    };
-  }, [publicKey, activeType]);
-
-  // Remove or modify other useEffect hooks that might be causing updates
   useEffect(() => {
     if (!publicKey) return;
 
-    // Only update once when credentials load or type changes
+    // First WebSocket: commitment "processed", retry logic, keepAliveMs=15000
+    subscribeWebSocket({
+      commitment: "processed",
+      keepAliveMs: 15000,
+      enableRetry: true,
+      visibleCredentials: getFilteredCredentials(),
+      initializeProgram,
+      // @ts-ignore
+      updateCredentialStates,
+      setWsConnection,
+    });
+
+    // ...existing code...
+  }, [publicKey, activeType]);
+
+  useEffect(() => {
+    if (!publicKey) return;
+
+    // Second WebSocket: commitment "confirmed", no retry logic, keepAliveMs=30000
+    subscribeWebSocket({
+      commitment: "confirmed",
+      keepAliveMs: 30000,
+      enableRetry: false,
+      visibleCredentials: getFilteredCredentials(),
+      initializeProgram,
+      //@ts-ignore
+      updateCredentialStates,
+    });
+
+    // ...existing code...
+  }, [publicKey, activeType]);
+
+  useEffect(() => {
+    if (!publicKey) return;
     const timeoutId = setTimeout(() => {
       updateCredentialStates();
-    }, 500); // Add small delay to prevent immediate updates
+    }, 500);
 
     return () => clearTimeout(timeoutId);
   }, [unverifiedCredentials, publicKey, activeType]);
@@ -850,7 +845,6 @@ const Staking: React.FC = () => {
     return stakedCredentials.has(credentialId);
   };
 
-  // Fix isUserInMajority logic
   function isUserInMajority(
     credentialState: CredentialState,
     verifier: VerifierInfo
@@ -919,98 +913,6 @@ const Staking: React.FC = () => {
       toast.error("Failed to load proof");
     } finally {
       setIsLoadingProof((prev) => ({ ...prev, [credentialId]: false }));
-    }
-  };
-
-  useEffect(() => {
-    if (!publicKey) return;
-
-    const ws = new WebSocket(RPC_ENDPOINTS.HELIUS_WS);
-    let wsKeepAliveInterval: NodeJS.Timeout;
-
-    ws.onopen = () => {
-      console.log("WebSocket connected");
-
-      // Subscribe to visible credentials
-      const visibleCredentials = getFilteredCredentials();
-      visibleCredentials.forEach((cred) => {
-        const program = initializeProgram();
-        if (!program) return;
-
-        const credentialPDA = deriveCredentialPDA(program, cred.id);
-        ws.send(
-          JSON.stringify({
-            jsonrpc: "2.0",
-            id: cred.id,
-            method: "accountSubscribe",
-            params: [
-              credentialPDA.toBase58(),
-              { encoding: "jsonParsed", commitment: "confirmed" },
-            ],
-          })
-        );
-      });
-
-      // Keep-alive ping
-      wsKeepAliveInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({ jsonrpc: "2.0", id: "ping", method: "ping" })
-          );
-        }
-      }, 30000);
-    };
-
-    ws.onmessage = async (event) => {
-      const data = JSON.parse(event.data);
-      if (data.method === "accountNotification") {
-        // Debounced update for the specific credential
-        await updateCredentialState(data.params.result.value.pubkey);
-      }
-    };
-
-    return () => {
-      clearInterval(wsKeepAliveInterval);
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
-  }, [publicKey, activeType]);
-
-  // Modified updateCredentialStates to handle single credential updates
-  const updateCredentialState = async (credentialPubkey?: string) => {
-    if (!publicKey) return;
-
-    const now = Date.now();
-    if (now - lastUpdate < 1000) return; // Minimum 1 second between updates
-
-    try {
-      const program = initializeProgram();
-      if (!program) return;
-
-      const credentials = credentialPubkey
-        ? [unverifiedCredentials.find((c) => c.publicKey === credentialPubkey)]
-        : getFilteredCredentials();
-
-      if (!credentials.length) return;
-
-      // Process in small batches
-      for (let i = 0; i < credentials.length; i += BATCH_SIZE) {
-        const batch = credentials.slice(i, i + BATCH_SIZE);
-        await Promise.all(
-          batch.map(async (cred) => {
-            if (!cred) return;
-          })
-        );
-
-        if (i + BATCH_SIZE < credentials.length) {
-          await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY));
-        }
-      }
-
-      setLastUpdate(now);
-    } catch (error) {
-      console.error("Error updating credential states:", error);
     }
   };
 
@@ -1197,15 +1099,3 @@ const Staking: React.FC = () => {
 };
 
 export default Staking;
-
-const WS_RETRY_INTERVAL = 3000; // 3 seconds between retries
-const STATUS_UPDATE_DEBOUNCE = 500; // 500ms debounce for status updates
-
-// Add this utility function at the top
-const debounce = (func: Function, wait: number) => {
-  let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-};
