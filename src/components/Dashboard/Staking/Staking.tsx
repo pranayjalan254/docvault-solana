@@ -733,7 +733,6 @@ const Staking: React.FC = () => {
   function subscribeWebSocket({
     commitment,
     keepAliveMs,
-
     visibleCredentials,
     initializeProgram,
     updateCredentialState,
@@ -777,6 +776,10 @@ const Staking: React.FC = () => {
             );
           }
         }, keepAliveMs);
+      };
+
+      ws.onclose = () => {
+        clearInterval(wsKeepAliveInterval);
       };
 
       ws.onmessage = async (event) => {
