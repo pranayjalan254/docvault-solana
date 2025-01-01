@@ -1,4 +1,4 @@
-export const IDL = {
+export const IDL1 = {
   version: "0.1.0",
   name: "pash",
   instructions: [
