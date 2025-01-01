@@ -55,8 +55,8 @@ pub fn submit_project(
     project_name: String,
     project_description: String,
     collaborators: Option<Vec<String>>,
-    start_date: i32, // Change from i64 to i32
-    end_date: Option<i32>, // Change from Option<i64> to Option<i32>
+    start_date: i32, 
+    end_date: Option<i32>, 
     currently_working: Option<bool>,
     project_link: String,
 ) -> Result<()> {
@@ -78,14 +78,14 @@ pub fn submit_project(
     project.end_date = end_date;
     project.currently_working = currently_working;
     project.project_link = project_link;
-    project.timestamp = Clock::get()?.unix_timestamp as i32; // Cast to i32
+    project.timestamp = Clock::get()?.unix_timestamp as i32; 
     project.status = VerificationStatus::Pending;
     project.verifiers = Vec::new();
 
     emit!(ProjectSubmitted {
         user: *ctx.accounts.user.key,
         project_name,
-        timestamp: project.timestamp,  // Now matches i32
+        timestamp: project.timestamp, 
     });
 
     Ok(())

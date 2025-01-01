@@ -101,7 +101,6 @@ const DegreeForm: React.FC = () => {
           });
         }
       }
-      // Reset form
       setDegreeName("");
       setCollegeName("");
       setPassoutYear("");

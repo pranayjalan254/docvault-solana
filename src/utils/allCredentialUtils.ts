@@ -7,7 +7,6 @@ import { generateStableCredentialId } from "./generateStableIDS";
 // Update the program ID to match the one in upload.rs
 const programId = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 
-// Adjust the account sizes to match the struct sizes in upload.rs
 const accountSizes = {
   degree: 313,      // 8 + 32 + 128 + 128 + 8 + 1 + 8
   employment: 578,  // 8 + 32 + 128 + 128 + 8 + 8 + 1 + 8 + 1 + 256
@@ -19,15 +18,15 @@ const accountSizes = {
 const getStatusString = (status: any) => {
   if (status?.verified) return "Verified";
   if (status?.rejected) return "Rejected";
-  return "Pending";
+  if (status?.pending) return "Pending";
+  return "Pending"; // fallback
 };
 
 // Add this utility function at the top
 const safeParseTimestamp = (timestamp: number): string => {
   try {
-    // Ensure the timestamp is within safe JavaScript integer range
     if (timestamp > Number.MAX_SAFE_INTEGER) {
-      return new Date().toLocaleDateString(); // Fallback to current date if timestamp is too large
+      return new Date().toLocaleDateString();
     }
     return new Date(timestamp * 1000).toLocaleDateString();
   } catch (error) {
@@ -39,7 +38,6 @@ const safeParseTimestamp = (timestamp: number): string => {
 export const fetchUnverifiedCredentials = async (
   provider: AnchorProvider
 ): Promise<Credential[]> => {
-  // Update to use the correct IDL
   const program = new Program(IDL as any, programId, provider);
   let credentials: Credential[] = [];
 
