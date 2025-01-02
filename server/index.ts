@@ -73,7 +73,7 @@ app.post(
   }
 );
 
-// Add new endpoint to fetch credential proof
+// Endpoint to fetch credential proof
 app.get(
   "/api/credential-proof/:credentialId",
   async (req: Request, res: Response): Promise<void> => {
@@ -87,7 +87,6 @@ app.get(
         return;
       }
 
-      // If there's a PDF file, send it
       if (credential.pdf?.data) {
         res.set("Content-Type", credential.pdf.contentType);
         res.set(
@@ -98,7 +97,6 @@ app.get(
         return;
       }
 
-      // If there's a proofLink, return it
       if (credential.proofLink) {
         res.json({
           success: true,
@@ -108,7 +106,6 @@ app.get(
         return;
       }
 
-      // If neither exists
       res.status(404).json({ success: false, error: "No proof available" });
     } catch (error) {
       console.error("Error fetching proof:", error);

@@ -631,7 +631,7 @@ const Staking: React.FC = () => {
         verifierCount: (account as any).verifierCount,
         isFinalized: (account as any).isFinalized,
         authenticVotes: (account as any).authenticVotes,
-        createdAt: (account as any).createdAt, // <-- Add createdAt
+        createdAt: (account as any).createdAt,
       };
     } catch {
       return null;
@@ -814,14 +814,10 @@ const Staking: React.FC = () => {
       updateCredentialStates,
       setWsConnection,
     });
-
-    // ...existing code...
   }, [publicKey, activeType]);
 
   useEffect(() => {
     if (!publicKey) return;
-
-    // Second WebSocket: commitment "confirmed", no retry logic, keepAliveMs=30000
     subscribeWebSocket({
       commitment: "confirmed",
       keepAliveMs: 30000,
@@ -831,8 +827,6 @@ const Staking: React.FC = () => {
       //@ts-ignore
       updateCredentialStates,
     });
-
-    // ...existing code...
   }, [publicKey, activeType]);
 
   useEffect(() => {

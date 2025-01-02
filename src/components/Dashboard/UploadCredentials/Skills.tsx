@@ -54,20 +54,10 @@ const SkillForm: React.FC = () => {
       });
       return;
     }
-
-    if (proficiency === "") {
-      notification.error({
-        message: "Invalid Input",
-        description: "Please select a proficiency level",
-      });
-      return;
-    }
+    const proficiencyEnum = { [proficiency.toLowerCase()]: {} };
 
     try {
       setIsSubmitting(true);
-      const program = getProgram();
-      const credentialAccount = web3.Keypair.generate();
-      const proficiencyEnum = { [proficiency.toLowerCase()]: {} };
       const credentialData = {
         type: "Skill",
         title: skillName,
@@ -78,6 +68,27 @@ const SkillForm: React.FC = () => {
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
+
+      // First upload to MongoDB
+      try {
+        await saveCredentialUpload(
+          "Skill",
+          stableId,
+          proof || undefined,
+          proofLink || undefined
+        );
+      } catch (mongoError) {
+        console.error("Error saving to MongoDB:", mongoError);
+        notification.error({
+          message: "Upload Failed",
+          description: "Failed to save skill proof. Please try again.",
+        });
+        return;
+      }
+
+      // Proceed with blockchain transaction
+      const program = getProgram();
+      const credentialAccount = web3.Keypair.generate();
 
       const treasuryWallet = new web3.PublicKey(
         "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
@@ -94,32 +105,16 @@ const SkillForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      if (proof || proofLink) {
-        try {
-          await saveCredentialUpload(
-            "Skill",
-            stableId,
-            proof || undefined,
-            proofLink || undefined
-          );
-          notification.success({
-            message: "Success",
-            description: "Skill credential submitted successfully!",
-          });
-        } catch (mongoError) {
-          console.error("Error saving to MongoDB:", mongoError);
-          notification.warning({
-            message: "Partial Success",
-            description:
-              "Certificate submitted on-chain but failed to save proof file.",
-          });
-        }
-      }
+      notification.success({
+        message: "Success",
+        description: "Skill credential submitted successfully!",
+      });
 
       // Reset form
       setSkillName("");
       setProficiency("");
       setProofLink("");
+      setProof(null);
     } catch (error) {
       console.error("Error submitting credential:", error);
       notification.error({

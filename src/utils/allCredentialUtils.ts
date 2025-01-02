@@ -168,7 +168,6 @@ export const fetchUnverifiedCredentials = async (
             if (decoded.endDate) {
               endDateStr = safeParseTimestamp(decoded.endDate);
             }
-
             return {
               type: "Project",
               title: decoded.projectName,
@@ -176,7 +175,6 @@ export const fetchUnverifiedCredentials = async (
               status: getStatusString(decoded.status),
               details: {
                 description: decoded.projectDescription,
-                collaborators: decoded.collaborators || [],
                 projectLink: decoded.projectLink,
               },
             };

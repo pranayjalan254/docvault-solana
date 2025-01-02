@@ -54,6 +54,15 @@ const OnlineCertificationsForm: React.FC = () => {
       return;
     }
 
+    if (!proof && !proofLink) {
+      notification.error({
+        message: "Missing Proof",
+        description:
+          "Please provide either a verification link or upload certificate",
+      });
+      return;
+    }
+
     // Validate date
     const issueDate = new Date(dateOfIssue);
     if (isNaN(issueDate.getTime())) {
@@ -75,8 +84,7 @@ const OnlineCertificationsForm: React.FC = () => {
 
     try {
       setIsSubmitting(true);
-      const program = getProgram();
-      const certificateKeypair = web3.Keypair.generate();
+
       const credentialData = {
         type: "Certificate",
         title: certificationName,
@@ -87,11 +95,32 @@ const OnlineCertificationsForm: React.FC = () => {
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
+
+      // First upload to MongoDB
+      try {
+        await saveCredentialUpload(
+          "Certification",
+          stableId,
+          proof || undefined,
+          proofLink || undefined
+        );
+      } catch (mongoError) {
+        console.error("Error saving to MongoDB:", mongoError);
+        notification.error({
+          message: "Upload Failed",
+          description: "Failed to save certificate proof. Please try again.",
+        });
+        return;
+      }
+
+      // Proceed with blockchain transaction
+      const program = getProgram();
+      const certificateKeypair = web3.Keypair.generate();
       const treasuryWallet = new web3.PublicKey(
         "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
       );
 
-      const issueTimestamp = Math.floor(issueDate.getTime() / 1000); // Convert to Unix timestamp
+      const issueTimestamp = Math.floor(issueDate.getTime() / 1000);
 
       await program.methods
         .submitCertificate(
@@ -109,32 +138,10 @@ const OnlineCertificationsForm: React.FC = () => {
         .signers([certificateKeypair])
         .rpc();
 
-      if (proof || proofLink) {
-        try {
-          await saveCredentialUpload(
-            "Certification",
-            stableId,
-            proof || undefined,
-            proofLink || undefined
-          );
-          notification.success({
-            message: "Success",
-            description: "Certificate submitted successfully!",
-          });
-        } catch (mongoError) {
-          console.error("Error saving to MongoDB:", mongoError);
-          notification.warning({
-            message: "Partial Success",
-            description:
-              "Certificate submitted on-chain but failed to save proof file.",
-          });
-        }
-      } else {
-        notification.success({
-          message: "Success",
-          description: "Certificate submitted successfully!",
-        });
-      }
+      notification.success({
+        message: "Success",
+        description: "Certificate submitted successfully!",
+      });
 
       // Reset form
       setCertificationName("");

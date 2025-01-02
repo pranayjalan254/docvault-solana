@@ -58,27 +58,54 @@ const ProjectForm: React.FC = () => {
       return;
     }
 
+    if (!projectFiles && !link) {
+      notification.error({
+        message: "Missing Proof",
+        description:
+          "Please provide either a project link or upload project files",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const program = getProgram();
-      const credentialAccount = web3.Keypair.generate();
+
       const credentialData = {
         type: "Project",
         title: projectName,
         details: {
           description: projectDetails,
-          collaborators: collaborators || [],
           projectLink: link,
         },
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
+
+      // First upload to MongoDB
+      try {
+        await saveCredentialUpload(
+          "Project",
+          stableId,
+          projectFiles || undefined,
+          link || undefined
+        );
+      } catch (mongoError) {
+        console.error("Error saving to MongoDB:", mongoError);
+        notification.error({
+          message: "Upload Failed",
+          description: "Failed to save project files. Please try again.",
+        });
+        return;
+      }
+
+      // Proceed with blockchain transaction
+      const program = getProgram();
+      const credentialAccount = web3.Keypair.generate();
       const treasuryWallet = new web3.PublicKey(
         "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
       );
 
       const startTimestamp = new Date(startDate).getTime() / 1000;
-
       const endTimestamp = currentlyWorking
         ? null
         : endDate
@@ -108,27 +135,10 @@ const ProjectForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      if (projectFiles || link) {
-        try {
-          await saveCredentialUpload(
-            "Project",
-            stableId,
-            projectFiles || undefined,
-            link || undefined
-          );
-          notification.success({
-            message: "Success",
-            description: "Project submitted successfully!",
-          });
-        } catch (mongoError) {
-          console.error("Error saving to MongoDB:", mongoError);
-          notification.warning({
-            message: "Partial Success",
-            description:
-              "Certificate submitted on-chain but failed to save proof file.",
-          });
-        }
-      }
+      notification.success({
+        message: "Success",
+        description: "Project submitted successfully!",
+      });
 
       // Reset form
       setProjectName("");
