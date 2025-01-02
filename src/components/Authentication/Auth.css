@@ -65,57 +65,55 @@
   color: #f0f0f0;
 }
 
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.8);
+.terms-section {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.terms-content {
+  max-height: 300px;
+  overflow-y: auto;
+  margin: 20px 0;
+  padding: 10px;
+  border: 1px solid #eee;
+  border-radius: 5px;
+}
+
+.terms-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 auto;
+}
+
+.terms-checkbox input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.terms-checkbox label {
+  font-size: 0.9rem;
+  color: #dcdcdc;
+  cursor: pointer;
+}
+
+.terms-label-container {
   display: flex;
-  justify-content: center;
   align-items: center;
 }
 
-.modal-content {
-  background: #1e1e1e;
-  padding: 30px;
-  border-radius: 12px;
-  width: 400px;
-  text-align: center;
-  color: #ffffff;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-}
-
-.modal-content h2 {
-  margin-bottom: 20px;
-  font-size: 1.8rem;
-}
-
-.modal-content ol {
-  text-align: left;
-  margin-bottom: 20px;
-}
-
-.modal-content ol li {
-  margin-bottom: 10px;
-}
-
-.modal-content a {
-  color: #f0f0f0;
-  text-decoration: underline;
-}
-
-.modal-close-button {
-  background: linear-gradient(90deg, #ffffff, #f0f0f0);
-  color: black;
+.terms-modal-button {
+  background: none;
   border: none;
-  border-radius: 8px;
-  padding: 10px 20px;
+  color: #ffffff;
+  text-decoration: underline;
   cursor: pointer;
-  transition: all 0.3s ease;
+  padding: 0;
+  font: inherit;
+  color: inherit;
 }
 
-.modal-close-button:hover {
-  background: linear-gradient(90deg, #f0f0f0, #e0e0e0);
+.terms-modal-button:hover {
+  color: #f0f0f0;
 }
