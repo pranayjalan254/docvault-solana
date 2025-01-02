@@ -108,9 +108,14 @@ const ProjectForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      if (projectFiles) {
+      if (projectFiles || link) {
         try {
-          await saveCredentialUpload("Project", stableId, projectFiles);
+          await saveCredentialUpload(
+            "Project",
+            stableId,
+            projectFiles || undefined,
+            link || undefined
+          );
           notification.success({
             message: "Success",
             description: "Project submitted successfully!",

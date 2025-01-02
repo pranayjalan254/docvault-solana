@@ -37,22 +37,28 @@ app.post(
   upload.single("file"),
   async (req: Request, res: Response): Promise<void> => {
     try {
-      const { type, publicKey: credentialId } = req.body;
+      const { type, publicKey: credentialId, proofLink } = req.body;
       const file = req.file;
 
-      if (!file) {
-        res.status(400).json({ success: false, error: "No file provided" });
+      if (!file && !proofLink) {
+        res.status(400).json({
+          success: false,
+          error: "Either file or proof link must be provided",
+        });
         return;
       }
 
       const credential = {
         credentialType: type,
         credentialId,
-        pdf: {
-          data: file.buffer,
-          contentType: file.mimetype,
-          filename: file.originalname,
-        },
+        ...(file && {
+          pdf: {
+            data: file.buffer,
+            contentType: file.mimetype,
+            filename: file.originalname,
+          },
+        }),
+        ...(proofLink && { proofLink }),
       };
 
       const newCredential = await CredentialModel.create(credential);
@@ -76,17 +82,34 @@ app.get(
         credentialId: req.params.credentialId,
       });
 
-      if (!credential || !credential.pdf) {
-        res.status(404).json({ success: false, error: "Proof not found" });
+      if (!credential) {
+        res.status(404).json({ success: false, error: "Credential not found" });
         return;
       }
 
-      res.set("Content-Type", credential.pdf.contentType);
-      res.set(
-        "Content-Disposition",
-        `inline; filename="${credential.pdf.filename}"`
-      );
-      res.send(credential.pdf.data);
+      // If there's a PDF file, send it
+      if (credential.pdf?.data) {
+        res.set("Content-Type", credential.pdf.contentType);
+        res.set(
+          "Content-Disposition",
+          `inline; filename="${credential.pdf.filename}"`
+        );
+        res.send(credential.pdf.data);
+        return;
+      }
+
+      // If there's a proofLink, return it
+      if (credential.proofLink) {
+        res.json({
+          success: true,
+          type: "link",
+          proofLink: credential.proofLink,
+        });
+        return;
+      }
+
+      // If neither exists
+      res.status(404).json({ success: false, error: "No proof available" });
     } catch (error) {
       console.error("Error fetching proof:", error);
       res.status(500).json({ success: false, error: "Failed to fetch proof" });

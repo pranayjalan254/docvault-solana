@@ -94,9 +94,14 @@ const SkillForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      if (proof) {
+      if (proof || proofLink) {
         try {
-          await saveCredentialUpload("Skill", stableId, proof);
+          await saveCredentialUpload(
+            "Skill",
+            stableId,
+            proof || undefined,
+            proofLink || undefined
+          );
           notification.success({
             message: "Success",
             description: "Skill credential submitted successfully!",

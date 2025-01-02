@@ -1,13 +1,19 @@
 export async function saveCredentialUpload(
   type: "Skill" | "Degree" | "Employment" | "Project" | "Certification",
   publicKey: string,
-  file: File
+  file?: File,
+  proofLink?: string
 ): Promise<string> {
   try {
     const formData = new FormData();
     formData.append("type", type);
     formData.append("publicKey", publicKey);
-    formData.append("file", file);
+    if (file) {
+      formData.append("file", file);
+    }
+    if (proofLink) {
+      formData.append("proofLink", proofLink);
+    }
 
     const response = await fetch(
       "https://docvault.onrender.com/api/upload-credential",

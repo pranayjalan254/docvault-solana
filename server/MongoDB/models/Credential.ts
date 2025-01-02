@@ -1,13 +1,19 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document } from "mongoose";
 
 export interface ICredential extends Document {
-  credentialType: 'Skill' | 'Degree' | 'Employment' | 'Project' | 'Certification';
+  credentialType:
+    | "Skill"
+    | "Degree"
+    | "Employment"
+    | "Project"
+    | "Certification";
   credentialId: string;
-  pdf: {
+  pdf?: {
     data: Buffer;
     contentType: string;
     filename: string;
   };
+  proofLink?: string;
   createdAt: Date;
 }
 
@@ -15,15 +21,21 @@ const CredentialSchema = new Schema({
   credentialType: {
     type: String,
     required: true,
-    enum: ['Skill', 'Degree', 'Employment', 'Project', 'Certification']
+    enum: ["Skill", "Degree", "Employment", "Project", "Certification"],
   },
   credentialId: { type: String, required: true, index: true },
   pdf: {
-    data: { type: mongoose.Schema.Types.Buffer , required: true },
+    data: { type: mongoose.Schema.Types.Buffer, required: false },
     contentType: { type: String },
-    filename: { type: String }
+    filename: { type: String },
   },
-  createdAt: { type: Date, default: Date.now }
+  proofLink: { type: String, required: false },
+  createdAt: { type: Date, default: Date.now },
 });
-const CredentialModel = mongoose.model<ICredential>('Credential', CredentialSchema, 'credential');
+
+const CredentialModel = mongoose.model<ICredential>(
+  "Credential",
+  CredentialSchema,
+  "credential"
+);
 export default CredentialModel;

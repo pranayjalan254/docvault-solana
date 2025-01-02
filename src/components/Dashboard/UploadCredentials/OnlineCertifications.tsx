@@ -109,9 +109,14 @@ const OnlineCertificationsForm: React.FC = () => {
         .signers([certificateKeypair])
         .rpc();
 
-      if (proof) {
+      if (proof || proofLink) {
         try {
-          await saveCredentialUpload("Certification", stableId, proof);
+          await saveCredentialUpload(
+            "Certification",
+            stableId,
+            proof || undefined,
+            proofLink || undefined
+          );
           notification.success({
             message: "Success",
             description: "Certificate submitted successfully!",
