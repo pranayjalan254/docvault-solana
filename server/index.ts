@@ -11,7 +11,7 @@ const upload = multer();
 const allowedOrigins = [
   "http://localhost:5173",
   "https://docvault-solana.vercel.app",
-  "https://www.docvault.website/",
+  "https://www.docvault.website",
 ];
 
 app.use(
