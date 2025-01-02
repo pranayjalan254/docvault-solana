@@ -907,6 +907,18 @@ const Staking: React.FC = () => {
       if (!response.ok) {
         throw new Error("Failed to fetch proof");
       }
+
+      // Check if response is JSON (proofLink) or blob (PDF)
+      const contentType = response.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        const data = await response.json();
+        if (data.type === "link" && data.proofLink) {
+          window.open(data.proofLink, "_blank", "noopener,noreferrer");
+          return;
+        }
+      }
+
+      // Handle PDF display
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");

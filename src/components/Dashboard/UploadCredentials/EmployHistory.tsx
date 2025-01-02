@@ -51,10 +51,16 @@ const EmploymentHistoryForm: React.FC = () => {
       return;
     }
 
+    if (!proof) {
+      notification.error({
+        message: "Missing Proof",
+        description: "Please upload your employment proof document",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const program = getProgram();
-      const credentialAccount = web3.Keypair.generate();
 
       const credentialData = {
         type: "Employment History",
@@ -66,6 +72,22 @@ const EmploymentHistoryForm: React.FC = () => {
       };
       //@ts-ignore
       const stableId = generateStableCredentialId(credentialData);
+
+      // First upload to MongoDB
+      try {
+        await saveCredentialUpload("Employment", stableId, proof);
+      } catch (mongoError) {
+        console.error("Error saving to MongoDB:", mongoError);
+        notification.error({
+          message: "Upload Failed",
+          description: "Failed to upload proof document. Please try again.",
+        });
+        return;
+      }
+
+      // Proceed with blockchain transaction
+      const program = getProgram();
+      const credentialAccount = web3.Keypair.generate();
       const treasuryWallet = new web3.PublicKey(
         "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
       );
@@ -94,22 +116,11 @@ const EmploymentHistoryForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      if (proof) {
-        try {
-          await saveCredentialUpload("Employment", stableId, proof);
-          notification.success({
-            message: "Success",
-            description: "Employment history submitted successfully!",
-          });
-        } catch (mongoError) {
-          console.error("Error saving to MongoDB:", mongoError);
-          notification.warning({
-            message: "Partial Success",
-            description:
-              "Certificate submitted on-chain but failed to save proof file.",
-          });
-        }
-      }
+      notification.success({
+        message: "Success",
+        description: "Employment history submitted successfully!",
+      });
+
       // Reset form
       setCompanyName("");
       setJobTitle("");

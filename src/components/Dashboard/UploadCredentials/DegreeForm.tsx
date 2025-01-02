@@ -53,10 +53,16 @@ const DegreeForm: React.FC = () => {
       return;
     }
 
+    if (!proof) {
+      notification.error({
+        message: "Missing Proof",
+        description: "Please upload your degree proof document",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
-      const program = getProgram();
-      const credentialAccount = web3.Keypair.generate();
 
       const credentialData = {
         type: "Degree",
@@ -69,6 +75,20 @@ const DegreeForm: React.FC = () => {
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
 
+      // First upload to MongoDB
+      try {
+        await saveCredentialUpload("Degree", stableId, proof);
+      } catch (mongoError) {
+        console.error("Error saving to MongoDB:", mongoError);
+        notification.error({
+          message: "Upload Failed",
+          description: "Failed to upload proof document. Please try again.",
+        });
+        return;
+      }
+
+      const program = getProgram();
+      const credentialAccount = web3.Keypair.generate();
       const treasuryWallet = new web3.PublicKey(
         "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
       );
@@ -84,22 +104,11 @@ const DegreeForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      if (proof) {
-        try {
-          await saveCredentialUpload("Degree", stableId, proof);
-          notification.success({
-            message: "Success",
-            description: "Degree submitted successfully!",
-          });
-        } catch (mongoError) {
-          console.error("Error saving to MongoDB:", mongoError);
-          notification.warning({
-            message: "Partial Success",
-            description:
-              "Certificate submitted on-chain but failed to save proof file.",
-          });
-        }
-      }
+      notification.success({
+        message: "Success",
+        description: "Degree submitted successfully!",
+      });
+
       setDegreeName("");
       setCollegeName("");
       setPassoutYear("");
