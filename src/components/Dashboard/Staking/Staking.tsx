@@ -349,32 +349,60 @@ const Staking: React.FC = () => {
         program.programId
       );
 
-      // Check if verifier account already exists
+      // First, check if already staked
       try {
-        await program.account.verifier.fetch(verifierPDA);
-        toast.error("You have already staked for this credential");
-        return;
-      } catch (error) {}
+        const existingVerifier = await program.account.verifier.fetch(
+          verifierPDA
+        );
+        if (existingVerifier) {
+          setStakedCredentials((prev) => new Set(prev).add(credentialId));
+          toast.success("Already staked for this credential");
+          return;
+        }
+      } catch (error) {
+        // Account doesn't exist, continue with staking
+      }
 
       // Initialize credential if it doesn't exist
       if (!(await checkCredentialAccountExists(credentialPDA))) {
         await initializeCredentialAccount(credentialId);
       }
 
-      const tx = await program.methods
-        .stakeForCredential()
-        .accounts({
-          credential: credentialPDA,
-          verifier: verifierPDA,
-          authority: publicKey,
-          systemProgram: web3.SystemProgram.programId,
-        })
-        .rpc();
+      let tx;
+      try {
+        tx = await program.methods
+          .stakeForCredential()
+          .accounts({
+            credential: credentialPDA,
+            verifier: verifierPDA,
+            authority: publicKey,
+            systemProgram: web3.SystemProgram.programId,
+          })
+          .rpc();
+      } catch (error: any) {
+        if (error.message?.includes("already been processed")) {
+          // Check if the stake was actually recorded
+          try {
+            await program.account.verifier.fetch(verifierPDA);
+            setStakedCredentials((prev) => new Set(prev).add(credentialId));
+            toast.success("Successfully staked for credential verification");
+            return;
+          } catch (verifierError) {
+            throw error; // Re-throw if verification fails
+          }
+        } else {
+          throw error;
+        }
+      }
 
+      // If we get here, transaction was successful
       setTransactions((prev) => ({
         ...prev,
         [credentialId]: { signature: tx, confirmed: false },
       }));
+
+      // Add delay before confirmation check
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       const confirmed = await confirmTransaction(tx);
       if (confirmed) {
@@ -382,27 +410,58 @@ const Staking: React.FC = () => {
           ...prev,
           [credentialId]: { signature: tx, confirmed: true },
         }));
-        toast.success("Successfully staked for credential verification");
-        setStakedCredentials((prev) => new Set(prev).add(credentialId));
-        await updateCredentialStates();
+
+        // Verify the stake was actually recorded
+        try {
+          await program.account.verifier.fetch(verifierPDA);
+          setStakedCredentials((prev) => new Set(prev).add(credentialId));
+          toast.success("Successfully staked for credential verification");
+
+          // Update credential states
+          const newState = await fetchCredentialState(credentialId);
+          if (newState) {
+            setCredentialStates((prev) => ({
+              ...prev,
+              [credentialId]: newState,
+            }));
+          }
+        } catch (verifierError) {
+          console.error("Error verifying stake:", verifierError);
+          toast.error("Failed to verify stake status");
+        }
       } else {
         throw new Error("Transaction failed to confirm");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Staking error:", error);
-      setStakingState((prev) => ({
-        ...prev,
-        [credentialId]: {
-          ...prev[credentialId],
-          stakingError: "Failed to stake",
-        },
-      }));
-      toast.error("Failed to stake");
+
+      // Check one last time if the stake was successful despite errors
+      try {
+        const verifierInfo = await fetchVerifierInfo(credentialId);
+        if (verifierInfo) {
+          setStakedCredentials((prev) => new Set(prev).add(credentialId));
+          toast.success("Successfully staked for credential verification");
+          return;
+        }
+      } catch (verifierError) {
+        // Final error handling
+        setStakingState((prev) => ({
+          ...prev,
+          [credentialId]: {
+            ...prev[credentialId],
+            stakingError: "Failed to stake",
+          },
+        }));
+        toast.error("Failed to stake");
+      }
     } finally {
       setStakingState((prev) => ({
         ...prev,
         [credentialId]: { ...prev[credentialId], isStaking: false },
       }));
+
+      // Force update of credential states
+      await updateCredentialStates();
     }
   };
 
@@ -433,7 +492,7 @@ const Staking: React.FC = () => {
         program.programId
       );
 
-      await program.methods
+      const tx = await program.methods
         .makeDecision(isAuthentic)
         .accounts({
           credential: credentialPDA,
@@ -443,9 +502,55 @@ const Staking: React.FC = () => {
         })
         .rpc();
 
-      toast.success("Successfully voted on credential");
-    } catch (error) {
+      // Add a short delay before checking the transaction
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Verify if the vote was actually recorded
+      try {
+        const verifierInfo = await fetchVerifierInfo(credentialId);
+        if (verifierInfo?.hasVoted) {
+          toast.success("Successfully voted on credential");
+          // Update states immediately
+          setVerifierStates((prev) => ({
+            ...prev,
+            [credentialId]: verifierInfo,
+          }));
+          return;
+        }
+      } catch (verificationError) {
+        console.error("Vote verification error:", verificationError);
+      }
+
+      // If we reach here, double-check the transaction status
+      const connection = new Connection(RPC_ENDPOINTS.HELIUS);
+      const status = await connection.getSignatureStatus(tx);
+
+      if (status?.value?.err) {
+        throw new Error("Transaction failed");
+      } else {
+        toast.success("Successfully voted on credential");
+      }
+    } catch (error: any) {
       console.error("Voting error:", error);
+
+      // Check if the error is due to the transaction already being processed
+      if (
+        error.message?.includes("already been processed") ||
+        error.message?.includes("This transaction has already been processed")
+      ) {
+        // Verify if the vote was actually recorded
+        const verifierInfo = await fetchVerifierInfo(credentialId);
+        if (verifierInfo?.hasVoted) {
+          toast.success("Vote was successfully recorded");
+          // Update states immediately
+          setVerifierStates((prev) => ({
+            ...prev,
+            [credentialId]: verifierInfo,
+          }));
+          return;
+        }
+      }
+
       toast.error("Failed to vote");
     } finally {
       setStakingState((prev) => ({
@@ -730,6 +835,80 @@ const Staking: React.FC = () => {
     }
   };
 
+  const updateCredentialState = async (accountKey: string) => {
+    try {
+      const program = initializeProgram();
+      if (!program || !publicKey) return;
+
+      // Validate the account key
+      let pubKey: web3.PublicKey;
+      try {
+        pubKey = new web3.PublicKey(accountKey);
+      } catch (error) {
+        console.error("Invalid public key:", accountKey);
+        return;
+      }
+
+      // Try to fetch credential state
+      try {
+        const account = await program.account.credential.fetch(pubKey);
+        const credId = await program.account.credential
+          .fetch(pubKey)
+          .then((acc: any) => acc.id);
+
+        if (credId) {
+          setCredentialStates((prev) => ({
+            ...prev,
+            [credId]: {
+              verifierCount: (account as any).verifierCount,
+              isFinalized: (account as any).isFinalized,
+              authenticVotes: (account as any).authenticVotes,
+              createdAt: (account as any).createdAt,
+            },
+          }));
+
+          // Update verifier state for this credential
+          const verifierInfo = await fetchVerifierInfo(credId);
+          if (verifierInfo) {
+            setVerifierStates((prev) => ({
+              ...prev,
+              [credId]: verifierInfo,
+            }));
+          }
+        }
+      } catch (error) {
+        // If error, this might be a verifier account
+        try {
+          const verifierAccount = await program.account.verifier.fetch(pubKey);
+          if (verifierAccount) {
+            const credentialPDA = (verifierAccount as any).credential;
+            if (credentialPDA) {
+              // Fetch the credential ID from the PDA
+              const credAccount = await program.account.credential.fetch(
+                credentialPDA
+              );
+              const credId = (credAccount as any).id;
+
+              if (credId) {
+                const verifierInfo = await fetchVerifierInfo(credId);
+                if (verifierInfo) {
+                  setVerifierStates((prev) => ({
+                    ...prev,
+                    [credId]: verifierInfo,
+                  }));
+                }
+              }
+            }
+          }
+        } catch (verifierError) {
+          console.error("Error fetching verifier info:", verifierError);
+        }
+      }
+    } catch (error) {
+      console.error("Error updating credential state:", error);
+    }
+  };
+
   function subscribeWebSocket({
     commitment,
     keepAliveMs,
@@ -743,30 +922,54 @@ const Staking: React.FC = () => {
     enableRetry?: boolean;
     visibleCredentials: Credential[];
     initializeProgram: () => Program | null;
-    updateCredentialState: (accountKey?: string) => Promise<void>;
+    updateCredentialState: (accountKey: string) => Promise<void>;
     setWsConnection?: React.Dispatch<React.SetStateAction<WebSocket | null>>;
   }) {
     const setup = () => {
       const ws = new WebSocket(RPC_ENDPOINTS.HELIUS_WS);
       let wsKeepAliveInterval: NodeJS.Timeout;
+      let subscriptionIds: { [key: string]: number } = {};
 
       ws.onopen = () => {
         if (!visibleCredentials.length) return;
         const program = initializeProgram?.();
         if (!program) return;
 
-        visibleCredentials.forEach((cred, index) => {
+        // Subscribe to each credential's account changes
+        visibleCredentials.forEach((cred) => {
           const credentialPDA = deriveCredentialPDA(program, cred.id);
-          const req = {
+          const subscribeRequest = {
             jsonrpc: "2.0",
-            id: Date.now() + index,
+            id: Date.now(),
             method: "accountSubscribe",
             params: [
               credentialPDA.toBase58(),
               { encoding: "jsonParsed", commitment },
             ],
           };
-          ws.send(JSON.stringify(req));
+          ws.send(JSON.stringify(subscribeRequest));
+
+          // Also subscribe to associated verifier accounts
+          if (publicKey) {
+            const [verifierPDA] = web3.PublicKey.findProgramAddressSync(
+              [
+                Buffer.from("verifier"),
+                credentialPDA.toBuffer(),
+                publicKey.toBuffer(),
+              ],
+              program.programId
+            );
+            const verifierRequest = {
+              jsonrpc: "2.0",
+              id: Date.now() + 1,
+              method: "accountSubscribe",
+              params: [
+                verifierPDA.toBase58(),
+                { encoding: "jsonParsed", commitment },
+              ],
+            };
+            ws.send(JSON.stringify(verifierRequest));
+          }
         });
 
         wsKeepAliveInterval = setInterval(() => {
@@ -778,55 +981,67 @@ const Staking: React.FC = () => {
         }, keepAliveMs);
       };
 
-      ws.onclose = () => {
-        clearInterval(wsKeepAliveInterval);
-      };
-
       ws.onmessage = async (event) => {
         try {
           const data = JSON.parse(event.data);
           if (data.method === "accountNotification") {
             const accountKey = data.params.result.value.pubkey;
-            await updateCredentialState(accountKey);
+            if (typeof accountKey === "string" && accountKey.length > 0) {
+              await updateCredentialState(accountKey);
+            }
           }
-        } catch {
-          console.error("Error parsing WebSocket message");
+        } catch (error) {
+          console.error("Error handling WebSocket message:", error);
         }
       };
 
+      ws.onclose = () => {
+        clearInterval(wsKeepAliveInterval);
+        // Cleanup subscriptions
+        Object.values(subscriptionIds).forEach((id) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                jsonrpc: "2.0",
+                id: Date.now(),
+                method: "accountUnsubscribe",
+                params: [id],
+              })
+            );
+          }
+        });
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+
       setWsConnection?.(ws);
+      return ws;
     };
 
-    setup();
+    return setup();
   }
 
+  // Modify the effect that sets up WebSocket
   useEffect(() => {
     if (!publicKey) return;
 
-    // First WebSocket: commitment "processed", retry logic, keepAliveMs=15000
-    subscribeWebSocket({
+    const ws = subscribeWebSocket({
       commitment: "processed",
       keepAliveMs: 15000,
-      enableRetry: true,
       visibleCredentials: getFilteredCredentials(),
       initializeProgram,
       // @ts-ignore
-      updateCredentialStates,
+      updateCredentialState,
       setWsConnection,
     });
-  }, [publicKey, activeType]);
 
-  useEffect(() => {
-    if (!publicKey) return;
-    subscribeWebSocket({
-      commitment: "confirmed",
-      keepAliveMs: 30000,
-      enableRetry: false,
-      visibleCredentials: getFilteredCredentials(),
-      initializeProgram,
-      //@ts-ignore
-      updateCredentialStates,
-    });
+    return () => {
+      if (ws) {
+        ws.close();
+      }
+    };
   }, [publicKey, activeType]);
 
   useEffect(() => {
@@ -902,7 +1117,6 @@ const Staking: React.FC = () => {
         throw new Error("Failed to fetch proof");
       }
 
-      // Check if response is JSON (proofLink) or blob (PDF)
       const contentType = response.headers.get("content-type");
       if (contentType?.includes("application/json")) {
         const data = await response.json();
@@ -912,7 +1126,6 @@ const Staking: React.FC = () => {
         }
       }
 
-      // Handle PDF display
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
