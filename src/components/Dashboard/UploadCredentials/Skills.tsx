@@ -5,14 +5,15 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
-import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
-const PROGRAM_ID = new PublicKey(
-  "apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb"
-);
-const connection = new Connection("https://api.devnet.solana.com");
+import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential";
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
-// Enum to match the contract's ProficiencyLevel
+const PROGRAM_ID = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
+const connection = new Connection(
+  `https://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`
+);
 type ProficiencyLevel = "Beginner" | "Intermediate" | "Advanced";
 
 const SkillForm: React.FC = () => {
@@ -66,20 +67,21 @@ const SkillForm: React.FC = () => {
       setIsSubmitting(true);
       const program = getProgram();
       const credentialAccount = web3.Keypair.generate();
+      const proficiencyEnum = { [proficiency.toLowerCase()]: {} };
       const credentialData = {
         type: "Skill",
         title: skillName,
         details: {
-          proficiencyLevel: proficiency,
-          proofLink: proofLink,
+          proficiencyLevel: proficiencyEnum,
+          proofLink: proofLink || "",
         },
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
-      const treasuryWallet = new web3.PublicKey("C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU");
 
-      // Create the enum variant object for Anchor
-      const proficiencyEnum = { [proficiency.toLowerCase()]: {} };
+      const treasuryWallet = new web3.PublicKey(
+        "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
+      );
 
       await program.methods
         .submitSkill(skillName, proficiencyEnum, proofLink)
@@ -92,25 +94,22 @@ const SkillForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      notification.success({
-        message: "Success",
-        description: "Skill credential submitted successfully!",
-      });
-       if (proof) {
-              try {
-                await saveCredentialUpload(
-                  'Skill',
-                  stableId,
-                  proof
-                );
-              } catch (mongoError) {
-                console.error("Error saving to MongoDB:", mongoError);
-                notification.warning({
-                  message: "Partial Success",
-                  description: "Certificate submitted on-chain but failed to save proof file.",
-                });
-              }
-            }
+      if (proof) {
+        try {
+          await saveCredentialUpload("Skill", stableId, proof);
+          notification.success({
+            message: "Success",
+            description: "Skill credential submitted successfully!",
+          });
+        } catch (mongoError) {
+          console.error("Error saving to MongoDB:", mongoError);
+          notification.warning({
+            message: "Partial Success",
+            description:
+              "Certificate submitted on-chain but failed to save proof file.",
+          });
+        }
+      }
 
       // Reset form
       setSkillName("");

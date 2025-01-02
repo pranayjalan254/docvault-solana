@@ -11,11 +11,13 @@ const RPC_ENDPOINTS = [
   `https://devnet.helius-rpc.com/?api-key=${
     import.meta.env.VITE_HELIUS_API_KEY
   }`,
-  "https://wider-neat-road.solana-devnet.quiknode.pro/a7bddf172bf613f5530f049c69f0f41d19dfa49e",
+  `https://cosmopolitan-rough-flower.solana-devnet.quiknode.pro/${
+    import.meta.env.VITE_QUICKNODE_API_KEY
+  }`,
 ];
 
 let currentEndpointIndex = 0;
-const CACHE_DURATION = 0.05 * 60 * 1000;
+const CACHE_DURATION = 0.5 * 60 * 1000;
 const credentialCache = new Map<
   string,
   { data: Credential[]; timestamp: number }
@@ -51,30 +53,28 @@ export const fetchAllCredentials = async (
     });
     const program = new Program(IDL as any, programId, newProvider);
 
-    // Add delay between requests
     const delay = (ms: number) =>
       new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Fetch credentials sequentially with delays
     const degrees = await program.account.userDegreeCredential.all([
       { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
     ]);
-    await delay(1000);
+    await delay(500);
 
     const skills = await program.account.skillCredential.all([
       { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
     ]);
-    await delay(1000);
+    await delay(500);
 
     const employments = await program.account.employmentCredential.all([
       { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
     ]);
-    await delay(1000);
+    await delay(500);
 
     const certificates = await program.account.certificateCredential.all([
       { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
     ]);
-    await delay(1000);
+    await delay(500);
 
     const projects = await program.account.projectCredential.all([
       { memcmp: { offset: 8, bytes: publicKey.toBase58() } },
@@ -96,9 +96,7 @@ export const fetchAllCredentials = async (
       ...projects.map((p: any) => ({
         type: "Project",
         title: p.account.projectName,
-        dateIssued: new Date(
-          p.account.timestamp.toNumber() * 1000
-        ).toLocaleDateString(),
+        dateIssued: new Date(p.account.timestamp * 1000).toLocaleDateString(),
         status: getStatusString(p.account.status),
         details: {
           projectUrl: p.account.projectLink,

@@ -6,14 +6,15 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import "./ProjectForm.css";
-import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential";
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
-const PROGRAM_ID = new PublicKey(
-  "apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb"
+const PROGRAM_ID = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
+const connection = new Connection(
+  `https://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`
 );
-const connection = new Connection("https://api.devnet.solana.com");
-
 const ProjectForm: React.FC = () => {
   const [projectName, setProjectName] = useState("");
   const [collaborators, setCollaborators] = useState("");
@@ -37,7 +38,6 @@ const ProjectForm: React.FC = () => {
       signTransaction,
       signAllTransactions,
     };
-    
 
     const provider = new AnchorProvider(connection, anchorWallet, {
       preflightCommitment: "processed",
@@ -73,19 +73,18 @@ const ProjectForm: React.FC = () => {
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
-      const treasuryWallet = new web3.PublicKey("C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU");
+      const treasuryWallet = new web3.PublicKey(
+        "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
+      );
 
-      // Convert dates to Unix timestamps
       const startTimestamp = new Date(startDate).getTime() / 1000;
 
-      // Only convert endDate if it exists and not currently working
       const endTimestamp = currentlyWorking
         ? null
         : endDate
         ? new Date(endDate).getTime() / 1000
         : null;
 
-      // Convert collaborators string to array if not empty
       const collaboratorsArray = collaborators.trim()
         ? collaborators.split(",").map((c) => c.trim())
         : null;
@@ -109,22 +108,19 @@ const ProjectForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      notification.success({
-        message: "Success",
-        description: "Project submitted successfully!",
-      });
- if (projectFiles) {
+      if (projectFiles) {
         try {
-          await saveCredentialUpload(
-            'Project', 
-            stableId,
-            projectFiles
-          );
+          await saveCredentialUpload("Project", stableId, projectFiles);
+          notification.success({
+            message: "Success",
+            description: "Project submitted successfully!",
+          });
         } catch (mongoError) {
           console.error("Error saving to MongoDB:", mongoError);
           notification.warning({
             message: "Partial Success",
-            description: "Certificate submitted on-chain but failed to save proof file.",
+            description:
+              "Certificate submitted on-chain but failed to save proof file.",
           });
         }
       }

@@ -4,15 +4,14 @@ import { IDL } from "../components/Dashboard/UploadCredentials/uploadidl";
 import { CredentialModalProps as Credential } from "../components/Dashboard/Profile/CredentialModal/CredentialModal";
 import { generateStableCredentialId } from "./generateStableIDS";
 
-// Update the program ID to match the one in upload.rs
 const programId = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 
 const accountSizes = {
-  degree: 313,      // 8 + 32 + 128 + 128 + 8 + 1 + 8
-  employment: 578,  // 8 + 32 + 128 + 128 + 8 + 8 + 1 + 8 + 1 + 256
-  project: 1602,    // 8 + 32 + 256 + 512 + 256 + 8 + 8 + 1 + 256 + 8 + 1 + 256
+  degree: 313, // 8 + 32 + 128 + 128 + 8 + 1 + 8
+  employment: 578, // 8 + 32 + 128 + 128 + 8 + 8 + 1 + 8 + 1 + 256
+  project: 1602, // 8 + 32 + 256 + 512 + 256 + 8 + 8 + 1 + 256 + 8 + 1 + 256
   certificate: 825, // 8 + 32 + 128 + 128 + 8 + 256 + 8 + 1 + 256
-  skill: 690       // 8 + 32 + 128 + 1 + 256 + 8 + 1 + 256
+  skill: 690, // 8 + 32 + 128 + 1 + 256 + 8 + 1 + 256
 };
 
 const getStatusString = (status: any) => {

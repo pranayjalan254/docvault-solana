@@ -5,14 +5,15 @@ import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
-import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential";
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
-
-const PROGRAM_ID = new PublicKey(
-  "apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb"
+const PROGRAM_ID = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
+const connection = new Connection(
+  `https://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`
 );
-const connection = new Connection("https://api.devnet.solana.com");
 
 const DegreeForm: React.FC = () => {
   const [degreeName, setDegreeName] = useState("");
@@ -68,7 +69,9 @@ const DegreeForm: React.FC = () => {
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
 
-      const treasuryWallet = new web3.PublicKey("C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU");
+      const treasuryWallet = new web3.PublicKey(
+        "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
+      );
 
       await program.methods
         .submitDegree(degreeName, collegeName, new BN(parseInt(passoutYear)))
@@ -81,23 +84,19 @@ const DegreeForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      notification.success({
-        message: "Success",
-        description: "Credential submitted successfully!",
-      });
-      
       if (proof) {
         try {
-          await saveCredentialUpload(
-            'Degree',
-            stableId,
-            proof
-          );
+          await saveCredentialUpload("Degree", stableId, proof);
+          notification.success({
+            message: "Success",
+            description: "Degree submitted successfully!",
+          });
         } catch (mongoError) {
           console.error("Error saving to MongoDB:", mongoError);
           notification.warning({
             message: "Partial Success",
-            description: "Certificate submitted on-chain but failed to save proof file.",
+            description:
+              "Certificate submitted on-chain but failed to save proof file.",
           });
         }
       }

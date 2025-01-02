@@ -1,17 +1,20 @@
 import React, { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
+import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
+import BN from "bn.js";
 import { IDL } from "./uploadidl";
 import CredentialFormBase from "./CredentialFormBase";
-import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential";
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
-const PROGRAM_ID = new PublicKey(
-  "apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb"
+const PROGRAM_ID = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
+const connection = new Connection(
+  `https://devnet.helius-rpc.com/?api-key=${
+    import.meta.env.VITE_HELIUS_API_KEY
+  }`
 );
-const connection = new Connection("https://api.devnet.solana.com");
 
 const OnlineCertificationsForm: React.FC = () => {
   const [certificationName, setCertificationName] = useState("");
@@ -51,6 +54,25 @@ const OnlineCertificationsForm: React.FC = () => {
       return;
     }
 
+    // Validate date
+    const issueDate = new Date(dateOfIssue);
+    if (isNaN(issueDate.getTime())) {
+      notification.error({
+        message: "Invalid Date",
+        description: "Please enter a valid date of issue",
+      });
+      return;
+    }
+
+    // Validate future dates
+    if (issueDate > new Date()) {
+      notification.error({
+        message: "Invalid Date",
+        description: "Date of issue cannot be in the future",
+      });
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const program = getProgram();
@@ -65,12 +87,13 @@ const OnlineCertificationsForm: React.FC = () => {
       };
       // @ts-ignore
       const stableId = generateStableCredentialId(credentialData);
-      const treasuryWallet = new web3.PublicKey("C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU");
-      
-      // Convert date to Unix timestamp
-      const issueTimestamp = new Date(dateOfIssue).getTime() / 1000;
+      const treasuryWallet = new web3.PublicKey(
+        "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
+      );
 
-      const tx = await program.methods
+      const issueTimestamp = Math.floor(issueDate.getTime() / 1000); // Convert to Unix timestamp
+
+      await program.methods
         .submitCertificate(
           certificationName,
           issuer,
@@ -86,35 +109,34 @@ const OnlineCertificationsForm: React.FC = () => {
         .signers([certificateKeypair])
         .rpc();
 
-      console.log("Transaction signature:", tx);
-      
-      // Save to MongoDB with proof file
       if (proof) {
         try {
-          await saveCredentialUpload(
-            'Certification',
-            stableId,
-            proof
-          );
+          await saveCredentialUpload("Certification", stableId, proof);
+          notification.success({
+            message: "Success",
+            description: "Certificate submitted successfully!",
+          });
         } catch (mongoError) {
           console.error("Error saving to MongoDB:", mongoError);
           notification.warning({
             message: "Partial Success",
-            description: "Certificate submitted on-chain but failed to save proof file.",
+            description:
+              "Certificate submitted on-chain but failed to save proof file.",
           });
         }
+      } else {
+        notification.success({
+          message: "Success",
+          description: "Certificate submitted successfully!",
+        });
       }
-
-      notification.success({
-        message: "Success",
-        description: "Certificate submitted successfully!",
-      });
 
       // Reset form
       setCertificationName("");
       setIssuer("");
       setDateOfIssue("");
       setProofLink("");
+      setProof(null);
     } catch (error) {
       console.error("Error submitting certificate:", error);
       notification.error({

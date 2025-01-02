@@ -5,12 +5,10 @@ import { Program, AnchorProvider, web3, BN } from "@project-serum/anchor";
 import { notification } from "antd";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { IDL } from "./uploadidl";
-import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential"
+import { saveCredentialUpload } from "../../../../server/MongoDB/utils/saveCredential";
 import { generateStableCredentialId } from "../../../utils/generateStableIDS";
 
-const PROGRAM_ID = new PublicKey(
-  "apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb"
-);
+const PROGRAM_ID = new PublicKey("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 const connection = new Connection("https://api.devnet.solana.com");
 
 const EmploymentHistoryForm: React.FC = () => {
@@ -21,9 +19,8 @@ const EmploymentHistoryForm: React.FC = () => {
   const [currentlyWorking, setCurrentlyWorking] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [proof, setProof] = useState<File | null>(null);
-
   const { publicKey, signTransaction, signAllTransactions } = useWallet();
-  console.log(proof);
+
   const getProgram = () => {
     if (!publicKey || !signTransaction || !signAllTransactions) {
       throw new Error("Wallet not connected");
@@ -69,12 +66,11 @@ const EmploymentHistoryForm: React.FC = () => {
       };
       //@ts-ignore
       const stableId = generateStableCredentialId(credentialData);
-      const treasuryWallet = new web3.PublicKey("C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU");
+      const treasuryWallet = new web3.PublicKey(
+        "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"
+      );
 
-      // Convert dates to Unix timestamps
       const startTimestamp = new Date(startDate).getTime() / 1000;
-
-      // Only convert endDate if it exists and not currently working
       const endTimestamp = currentlyWorking
         ? null
         : endDate
@@ -98,22 +94,19 @@ const EmploymentHistoryForm: React.FC = () => {
         .signers([credentialAccount])
         .rpc();
 
-      notification.success({
-        message: "Success",
-        description: "Employment history submitted successfully!",
-      });
       if (proof) {
         try {
-          await saveCredentialUpload(
-            'Employment',
-            stableId,
-            proof
-          );
+          await saveCredentialUpload("Employment", stableId, proof);
+          notification.success({
+            message: "Success",
+            description: "Employment history submitted successfully!",
+          });
         } catch (mongoError) {
           console.error("Error saving to MongoDB:", mongoError);
           notification.warning({
             message: "Partial Success",
-            description: "Certificate submitted on-chain but failed to save proof file.",
+            description:
+              "Certificate submitted on-chain but failed to save proof file.",
           });
         }
       }

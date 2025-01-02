@@ -907,7 +907,6 @@ const Staking: React.FC = () => {
       if (!response.ok) {
         throw new Error("Failed to fetch proof");
       }
-
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       window.open(url, "_blank");
@@ -964,14 +963,6 @@ const Staking: React.FC = () => {
             onClick={() => handleFilterClick(filter.type)}
           >
             <span className="filter-label">{filter.type}</span>
-            <span className="credential-count">
-              (
-              {
-                unverifiedCredentials.filter((c) => c.type === filter.type)
-                  .length
-              }
-              )
-            </span>
           </button>
         ))}
       </div>

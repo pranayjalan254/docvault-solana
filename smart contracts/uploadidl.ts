@@ -1,12 +1,13 @@
 export const IDL1 = {
   version: "0.1.0",
-  name: "pash",
+  name: "tablu",
   instructions: [
     {
       name: "submitDegree",
       accounts: [
         { name: "credential", isMut: true, isSigner: true },
         { name: "user", isMut: true, isSigner: true },
+        { name: "treasury", isMut: true, isSigner: false },
         { name: "systemProgram", isMut: false, isSigner: false },
       ],
       args: [
@@ -20,14 +21,15 @@ export const IDL1 = {
       accounts: [
         { name: "project", isMut: true, isSigner: true },
         { name: "user", isMut: true, isSigner: true },
+        { name: "treasury", isMut: true, isSigner: false },
         { name: "systemProgram", isMut: false, isSigner: false },
       ],
       args: [
         { name: "projectName", type: "string" },
         { name: "projectDescription", type: "string" },
         { name: "collaborators", type: { option: { vec: "string" } } },
-        { name: "startDate", type: "i64" },
-        { name: "endDate", type: { option: "i64" } },
+        { name: "startDate", type: "i32" },
+        { name: "endDate", type: { option: "i32" } },
         { name: "currentlyWorking", type: { option: "bool" } },
         { name: "projectLink", type: "string" },
       ],
@@ -37,6 +39,7 @@ export const IDL1 = {
       accounts: [
         { name: "skill", isMut: true, isSigner: true },
         { name: "user", isMut: true, isSigner: true },
+        { name: "treasury", isMut: true, isSigner: false },
         { name: "systemProgram", isMut: false, isSigner: false },
       ],
       args: [
@@ -50,6 +53,7 @@ export const IDL1 = {
       accounts: [
         { name: "employment", isMut: true, isSigner: true },
         { name: "user", isMut: true, isSigner: true },
+        { name: "treasury", isMut: true, isSigner: false },
         { name: "systemProgram", isMut: false, isSigner: false },
       ],
       args: [
@@ -65,6 +69,7 @@ export const IDL1 = {
       accounts: [
         { name: "certificate", isMut: true, isSigner: true },
         { name: "user", isMut: true, isSigner: true },
+        { name: "treasury", isMut: true, isSigner: false },
         { name: "systemProgram", isMut: false, isSigner: false },
       ],
       args: [
@@ -73,6 +78,46 @@ export const IDL1 = {
         { name: "dateOfIssue", type: "i64" },
         { name: "proofLink", type: { option: "string" } },
       ],
+    },
+    {
+      name: "updateDegreeVerificationStatus",
+      accounts: [
+        { name: "credential", isMut: true, isSigner: false },
+        { name: "authority", isMut: false, isSigner: true },
+      ],
+      args: [{ name: "newStatus", type: { defined: "VerificationStatus" } }],
+    },
+    {
+      name: "updateProjectVerificationStatus",
+      accounts: [
+        { name: "credential", isMut: true, isSigner: false },
+        { name: "authority", isMut: false, isSigner: true },
+      ],
+      args: [{ name: "newStatus", type: { defined: "VerificationStatus" } }],
+    },
+    {
+      name: "updateSkillVerificationStatus",
+      accounts: [
+        { name: "credential", isMut: true, isSigner: false },
+        { name: "authority", isMut: false, isSigner: true },
+      ],
+      args: [{ name: "newStatus", type: { defined: "VerificationStatus" } }],
+    },
+    {
+      name: "updateEmploymentVerificationStatus",
+      accounts: [
+        { name: "credential", isMut: true, isSigner: false },
+        { name: "authority", isMut: false, isSigner: true },
+      ],
+      args: [{ name: "newStatus", type: { defined: "VerificationStatus" } }],
+    },
+    {
+      name: "updateCertificateVerificationStatus",
+      accounts: [
+        { name: "credential", isMut: true, isSigner: false },
+        { name: "authority", isMut: false, isSigner: true },
+      ],
+      args: [{ name: "newStatus", type: { defined: "VerificationStatus" } }],
     },
   ],
   accounts: [
@@ -100,11 +145,11 @@ export const IDL1 = {
           { name: "projectName", type: "string" },
           { name: "projectDescription", type: "string" },
           { name: "collaborators", type: { option: { vec: "string" } } },
-          { name: "startDate", type: "i64" },
-          { name: "endDate", type: { option: "i64" } },
+          { name: "startDate", type: "i32" },
+          { name: "endDate", type: { option: "i32" } },
           { name: "currentlyWorking", type: { option: "bool" } },
           { name: "projectLink", type: "string" },
-          { name: "timestamp", type: "i64" },
+          { name: "timestamp", type: "i32" },
           { name: "status", type: { defined: "VerificationStatus" } },
           { name: "verifiers", type: { vec: "publicKey" } },
         ],
@@ -161,6 +206,19 @@ export const IDL1 = {
   ],
   types: [
     {
+      name: "CredentialType",
+      type: {
+        kind: "enum",
+        variants: [
+          { name: "Degree" },
+          { name: "Project" },
+          { name: "Skill" },
+          { name: "Employment" },
+          { name: "Certificate" },
+        ],
+      },
+    },
+    {
       name: "VerificationStatus",
       type: {
         kind: "enum",
@@ -199,7 +257,7 @@ export const IDL1 = {
       fields: [
         { name: "user", type: "publicKey", index: false },
         { name: "projectName", type: "string", index: false },
-        { name: "timestamp", type: "i64", index: false },
+        { name: "timestamp", type: "i32", index: false },
       ],
     },
     {

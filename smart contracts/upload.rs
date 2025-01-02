@@ -1,11 +1,15 @@
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::pubkey::Pubkey;
+use anchor_lang::system_program;
 
-declare_id!("AsjDSV316uhQKcGNfCECGBzj7eHwrYXho7CivhiQNJQ1");
+declare_id!("apwW9Vqxtu4Ga2dQ4R91jyYtWZ9HUFtx13MmPPfwLEb");
 
 #[program]
-pub mod pash {
+pub mod tablu {
     use super::*;
+
+    const UPLOAD_FEE: u64 = 5_500_449; 
+    pub const TREASURY_WALLET: &str = "C9KvY6JP9LNJo7vpJhkzVdtAVn6pLKuB52uhfLWCj4oU"; 
 
     pub fn submit_degree(
         ctx: Context<DegreeSubmitCredential>,
@@ -13,6 +17,16 @@ pub mod pash {
         college_name: String,
         passout_year: i64,
     ) -> Result<()> {
+        // Transfer 1 SOL to treasury
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        
+        system_program::transfer(cpi_context, UPLOAD_FEE)?;
         msg!("Degree Name: {:?}", degree_name);
         msg!("College Name: {:?}", college_name);
         msg!("Passout Year: {:?}", passout_year);
@@ -41,11 +55,20 @@ pub fn submit_project(
     project_name: String,
     project_description: String,
     collaborators: Option<Vec<String>>,
-    start_date: i64,
-    end_date: Option<i64>,
+    start_date: i32, 
+    end_date: Option<i32>, 
     currently_working: Option<bool>,
     project_link: String,
 ) -> Result<()> {
+    let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        
+    system_program::transfer(cpi_context, UPLOAD_FEE)?;
     let project = &mut ctx.accounts.project;
     project.user_address = *ctx.accounts.user.key;
     project.project_name = project_name.clone();
@@ -55,14 +78,14 @@ pub fn submit_project(
     project.end_date = end_date;
     project.currently_working = currently_working;
     project.project_link = project_link;
-    project.timestamp = Clock::get()?.unix_timestamp;
+    project.timestamp = Clock::get()?.unix_timestamp as i32; 
     project.status = VerificationStatus::Pending;
     project.verifiers = Vec::new();
 
     emit!(ProjectSubmitted {
         user: *ctx.accounts.user.key,
         project_name,
-        timestamp: project.timestamp,
+        timestamp: project.timestamp, 
     });
 
     Ok(())
@@ -74,6 +97,17 @@ pub fn submit_project(
         proficiency_level: ProficiencyLevel,
         proof_link: String,
     ) -> Result<()> {
+
+                let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        
+        system_program::transfer(cpi_context, UPLOAD_FEE)?;
+
         let skill = &mut ctx.accounts.skill;
         skill.user_address = *ctx.accounts.user.key;
         skill.skill_name = skill_name.clone();
@@ -100,6 +134,17 @@ pub fn submit_project(
         end_date: Option<i64>,
         currently_working: Option<bool>,
     ) -> Result<()> {
+
+        let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        
+        system_program::transfer(cpi_context, UPLOAD_FEE)?;
+
         let employment = &mut ctx.accounts.employment;
         employment.user_address = *ctx.accounts.user.key;
         employment.company_name = company_name.clone();
@@ -127,6 +172,17 @@ pub fn submit_project(
         date_of_issue: i64,
         proof_link: Option<String>,
     ) -> Result<()> {
+
+                let cpi_context = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            system_program::Transfer {
+                from: ctx.accounts.user.to_account_info(),
+                to: ctx.accounts.treasury.to_account_info(),
+            },
+        );
+        
+        system_program::transfer(cpi_context, UPLOAD_FEE)?;
+
         let certificate = &mut ctx.accounts.certificate;
         certificate.user_address = *ctx.accounts.user.key;
         certificate.certification_name = certification_name.clone();
@@ -145,14 +201,70 @@ pub fn submit_project(
 
         Ok(())
     }
+pub fn update_degree_verification_status(
+    ctx: Context<UpdateDegreeVerification>,
+    new_status: VerificationStatus,
+) -> Result<()> {
+    let credential = &mut ctx.accounts.credential;
+    credential.status = new_status.clone();
+
+    Ok(())
 }
+
+pub fn update_project_verification_status(
+    ctx: Context<UpdateProjectVerification>,
+    new_status: VerificationStatus,
+) -> Result<()> {
+    let credential = &mut ctx.accounts.credential;
+    credential.status = new_status.clone();
+    Ok(())
+}
+
+pub fn update_skill_verification_status(
+    ctx: Context<UpdateSkillVerification>,
+    new_status: VerificationStatus,
+) -> Result<()> {
+    let credential = &mut ctx.accounts.credential;
+    credential.status = new_status.clone();
+
+    Ok(())
+}
+
+pub fn update_employment_verification_status(
+    ctx: Context<UpdateEmploymentVerification>,
+    new_status: VerificationStatus,
+) -> Result<()> {
+    let credential = &mut ctx.accounts.credential;
+    credential.status = new_status.clone();
+
+
+    Ok(())
+}
+
+pub fn update_certificate_verification_status(
+    ctx: Context<UpdateCertificateVerification>,
+    new_status: VerificationStatus,
+) -> Result<()> {
+    let credential = &mut ctx.accounts.credential;
+    credential.status = new_status.clone();
+
+    Ok(())
+}
+}
+
 
 #[derive(Accounts)]
 pub struct DegreeSubmitCredential<'info> {
-    #[account(init, payer = user, space = 8 + 32 + 128 + 128 + 8)]
+    #[account(init, payer = user, space = 8 + 32 + 128 + 128 + 8 + 1 + 8)]
     pub credential: Account<'info, UserDegreeCredential>,
     #[account(mut)]
     pub user: Signer<'info>,
+    /// CHECK: Treasury wallet that receives fees
+    #[account(
+        mut,
+        constraint = treasury.key() == Pubkey::try_from(TREASURY_WALLET).unwrap()
+    )]
+    pub treasury: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 #[derive(Accounts)]
@@ -161,6 +273,12 @@ pub struct ProjectSubmitCredential<'info> {
     pub project: Account<'info, ProjectCredential>,
     #[account(mut)]
     pub user: Signer<'info>,
+    /// CHECK: Treasury wallet that receives fees
+    #[account(
+        mut,
+        constraint = treasury.key() == Pubkey::try_from(TREASURY_WALLET).unwrap()
+    )]
+    pub treasury: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -170,6 +288,12 @@ pub struct SkillSubmitCredential<'info> {
     pub skill: Account<'info, SkillCredential>,
     #[account(mut)]
     pub user: Signer<'info>,
+    /// CHECK: Treasury wallet that receives fees
+    #[account(
+        mut,
+        constraint = treasury.key() == Pubkey::try_from(TREASURY_WALLET).unwrap()
+    )]
+    pub treasury: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -179,6 +303,12 @@ pub struct EmploymentSubmitCredential<'info> {
     pub employment: Account<'info, EmploymentCredential>,
     #[account(mut)]
     pub user: Signer<'info>,
+    /// CHECK: Treasury wallet that receives fees
+    #[account(
+        mut,
+        constraint = treasury.key() == Pubkey::try_from(TREASURY_WALLET).unwrap()
+    )]
+    pub treasury: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
 
@@ -188,8 +318,49 @@ pub struct CertificateSubmitCredential<'info> {
     pub certificate: Account<'info, CertificateCredential>,
     #[account(mut)]
     pub user: Signer<'info>,
+    /// CHECK: Treasury wallet that receives fees
+    #[account(
+        mut,
+        constraint = treasury.key() == Pubkey::try_from(TREASURY_WALLET).unwrap()
+    )]
+    pub treasury: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
 }
+#[derive(Accounts)]
+pub struct UpdateDegreeVerification<'info> {
+    #[account(mut)]
+    pub credential: Account<'info, UserDegreeCredential>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateProjectVerification<'info> {
+    #[account(mut)]
+    pub credential: Account<'info, ProjectCredential>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateSkillVerification<'info> {
+    #[account(mut)]
+    pub credential: Account<'info, SkillCredential>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateEmploymentVerification<'info> {
+    #[account(mut)]
+    pub credential: Account<'info, EmploymentCredential>,
+    pub authority: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateCertificateVerification<'info> {
+    #[account(mut)]
+    pub credential: Account<'info, CertificateCredential>,
+    pub authority: Signer<'info>,
+}
+
 #[account]
 pub struct UserDegreeCredential {
     pub user_address: Pubkey,
@@ -206,11 +377,11 @@ pub struct ProjectCredential {
     pub project_name: String,
     pub project_description: String,
     pub collaborators: Option<Vec<String>>,
-    pub start_date: i64,
-    pub end_date: Option<i64>,
+    pub start_date: i32,
+    pub end_date: Option<i32>,
     pub currently_working: Option<bool>,
     pub project_link: String,
-    pub timestamp: i64,
+    pub timestamp: i32,
     pub status: VerificationStatus,
     pub verifiers: Vec<Pubkey>,
 }
@@ -251,6 +422,14 @@ pub struct CertificateCredential {
     pub verifiers: Vec<Pubkey>,
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
+pub enum CredentialType {
+    Degree,
+    Project,
+    Skill,
+    Employment,
+    Certificate,
+}
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
 pub enum VerificationStatus {
     Pending,
     Verified,
@@ -274,7 +453,7 @@ pub struct DegreeCredentialSubmitted {
 pub struct ProjectSubmitted {
     pub user: Pubkey,
     pub project_name: String,
-    pub timestamp: i64,
+    pub timestamp: i32, 
 }
 
 #[event]
