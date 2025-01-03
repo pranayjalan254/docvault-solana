@@ -10,6 +10,14 @@ import { toast } from "react-hot-toast";
 import { CredentialModalProps as Credential } from "../CredentialModal/CredentialModal";
 import { encryptPublicKey } from "../../../../utils/encryptionUtils";
 
+interface UserProfile {
+  _id?: string;
+  name: string;
+  username: string;
+  email?: string;
+  walletAddress: string;
+}
+
 const CACHE_DURATION = 5 * 60 * 1000;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 2000;
@@ -24,6 +32,14 @@ const Profile: React.FC = () => {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copyButtonText, setCopyButtonText] = useState("Copy");
   const [shareableLink, setShareableLink] = useState<string>("");
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: "",
+    username: "",
+    email: "",
+    walletAddress: "",
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getShareableLink = async () => {
     if (!publicKey) return "";
@@ -118,6 +134,70 @@ const Profile: React.FC = () => {
     fetchCredentialsWithRetry();
   }, [publicKey, wallet]);
 
+  useEffect(() => {
+    if (publicKey) {
+      setUserProfile((prev) => ({
+        ...prev,
+        walletAddress: publicKey.toString(),
+      }));
+      fetchUserProfile(publicKey.toString());
+    }
+  }, [publicKey]);
+
+  const fetchUserProfile = async (walletAddress: string) => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/users/${walletAddress}`
+      );
+      if (response.ok) {
+        const { user } = await response.json();
+        setUserProfile(user);
+      }
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+    }
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!publicKey) return;
+
+    setIsSubmitting(true);
+    try {
+      const url = `http://localhost:5000/api/users`;
+      const method = userProfile._id ? "PUT" : "POST";
+      const endpoint = userProfile._id ? `${url}/${publicKey.toString()}` : url;
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: userProfile.name,
+          username: userProfile.username,
+          email: userProfile.email,
+          walletAddress: publicKey.toString(),
+        }),
+      });
+
+      if (response.ok) {
+        const { user } = await response.json();
+        setUserProfile(user);
+        toast.success("Profile updated successfully!");
+        setIsProfileModalOpen(false);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update profile");
+      }
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      toast.error("Failed to update profile");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const CREDENTIAL_SECTIONS = [
     { type: "Degree", title: "Educational Credentials" },
     { type: "Project", title: "Projects" },
@@ -139,14 +219,109 @@ const Profile: React.FC = () => {
   return (
     <div className="profile-content fade-in">
       <div className="profile-header">
-        <h2>Your Uploaded Credentials</h2>
-        <button
-          className="share-button"
-          onClick={() => setIsShareModalOpen(true)}
-        >
-          Share Profile
-        </button>
+        <h2>
+          {userProfile.name
+            ? `Welcome, ${userProfile.name}`
+            : "Your Uploaded Credentials"}
+        </h2>
+        {!userProfile.name && <p>Please configure your profile</p>}
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            className="configure-profile-button"
+            onClick={() => setIsProfileModalOpen(true)}
+          >
+            {userProfile._id ? "Update Profile" : "Configure Profile"}
+          </button>
+          <button
+            className="share-button"
+            onClick={() => setIsShareModalOpen(true)}
+          >
+            Share Profile
+          </button>
+        </div>
       </div>
+
+      {/* Add Profile Configuration Modal */}
+      {isProfileModalOpen && (
+        <div
+          className="profile-config-modal"
+          onClick={() => setIsProfileModalOpen(false)}
+        >
+          <div
+            className="profile-config-content"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3>Configure Profile</h3>
+            <form onSubmit={handleProfileSubmit} className="profile-form">
+              <div className="form-group">
+                <label>Wallet Address</label>
+                <input
+                  type="text"
+                  value={publicKey?.toString() || ""}
+                  disabled
+                />
+              </div>
+              <div className="form-group">
+                <label>Name</label>
+                <input
+                  type="text"
+                  value={userProfile.name}
+                  onChange={(e) =>
+                    setUserProfile((prev) => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Username</label>
+                <input
+                  type="text"
+                  value={userProfile.username}
+                  onChange={(e) =>
+                    setUserProfile((prev) => ({
+                      ...prev,
+                      username: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label>Email (Optional)</label>
+                <input
+                  type="email"
+                  value={userProfile.email || ""}
+                  onChange={(e) =>
+                    setUserProfile((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div className="profile-config-buttons">
+                <button
+                  type="button"
+                  className="cancel-button"
+                  onClick={() => setIsProfileModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="save-button"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="credentials-sections">
         {CREDENTIAL_SECTIONS.map(({ type, title }) => {

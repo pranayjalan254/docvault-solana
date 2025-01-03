@@ -3,6 +3,7 @@ import cors from "cors";
 import multer from "multer";
 import connectDB from "./MongoDB/connect";
 import CredentialModel from "./MongoDB/models/Credential";
+import UserModel from "./MongoDB/models/User";
 import { Request, Response } from "express";
 
 const app = express();
@@ -69,6 +70,115 @@ app.post(
       res
         .status(500)
         .json({ success: false, error: "Failed to save credential" });
+    }
+  }
+);
+
+// API endpoint for user registration
+app.post("/api/users", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, username, email, walletAddress } = req.body;
+
+    // Check if user already exists by wallet address
+    const existingUserWallet = await UserModel.findOne({ walletAddress });
+    if (existingUserWallet) {
+      res.status(400).json({
+        success: false,
+        error: "Wallet address already registered",
+      });
+      return;
+    }
+
+    // Check if username is taken
+    const existingUsername = await UserModel.findOne({ username });
+    if (existingUsername) {
+      res.status(400).json({
+        success: false,
+        error: "Username already taken",
+      });
+      return;
+    }
+
+    const user = await UserModel.create({
+      name,
+      username,
+      email,
+      walletAddress,
+    });
+
+    res.status(201).json({ success: true, user });
+  } catch (error) {
+    console.error("API Error:", error);
+    res.status(500).json({ success: false, error: "Failed to create user" });
+  }
+});
+
+// API endpoint to get user by wallet address
+app.get(
+  "/api/users/:walletAddress",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const user = await UserModel.findOne({
+        walletAddress: req.params.walletAddress,
+      });
+
+      if (!user) {
+        res.status(404).json({ success: false, error: "User not found" });
+        return;
+      }
+
+      res.status(200).json({ success: true, user });
+    } catch (error) {
+      console.error("API Error:", error);
+      res.status(500).json({ success: false, error: "Failed to fetch user" });
+    }
+  }
+);
+
+// API endpoint to update user profile
+app.put(
+  "/api/users/:walletAddress",
+  async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { name, username, email } = req.body;
+      const walletAddress = req.params.walletAddress;
+
+      // First find the existing user
+      const existingUser = await UserModel.findOne({ walletAddress });
+      if (!existingUser) {
+        res.status(404).json({ success: false, error: "User not found" });
+        return;
+      }
+      if (username && username !== existingUser.username) {
+        const usernameExists = await UserModel.findOne({
+          username,
+          walletAddress: { $ne: walletAddress },
+        });
+
+        if (usernameExists) {
+          res.status(400).json({
+            success: false,
+            error: "Username already taken",
+          });
+          return;
+        }
+      }
+
+      const updateFields: { [key: string]: string } = {};
+      if (name) updateFields.name = name;
+      if (username) updateFields.username = username;
+      if (email !== undefined) updateFields.email = email;
+
+      const updatedUser = await UserModel.findOneAndUpdate(
+        { walletAddress },
+        { $set: updateFields },
+        { new: true }
+      );
+
+      res.status(200).json({ success: true, user: updatedUser });
+    } catch (error) {
+      console.error("API Error:", error);
+      res.status(500).json({ success: false, error: "Failed to update user" });
     }
   }
 );

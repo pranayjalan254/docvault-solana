@@ -17,6 +17,7 @@ const SharedProfile: React.FC = () => {
   const [credentials, setCredentials] = useState<Credential[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
 
   const CREDENTIAL_SECTIONS = [
     { type: "Degree", title: "Educational Credentials" },
@@ -48,6 +49,17 @@ const SharedProfile: React.FC = () => {
             setCredentials(cached);
             setLoading(false);
             return;
+          }
+        }
+
+        // Fetch user from backend
+        const userResponse = await fetch(
+          `http://localhost:5000/api/users/${decryptedPublicKey}`
+        );
+        if (userResponse.ok) {
+          const { user } = await userResponse.json();
+          if (user?.name) {
+            setUserName(user.name);
           }
         }
 
@@ -113,7 +125,9 @@ const SharedProfile: React.FC = () => {
 
   return (
     <div className="profile-content fade-in">
-      <h2 className="profile-header">Profile</h2>
+      <h2 className="profile-header1">
+        {userName ? `${userName}'s Profile` : "Profile"}
+      </h2>
       <div className="credentials-sections">
         {CREDENTIAL_SECTIONS.map(({ type, title }) => {
           const sectionCredentials = credentials.filter(
