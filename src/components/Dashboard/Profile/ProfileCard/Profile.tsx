@@ -147,7 +147,7 @@ const Profile: React.FC = () => {
   const fetchUserProfile = async (walletAddress: string) => {
     try {
       const response = await fetch(
-        `http://localhost:5000/api/users/${walletAddress}`
+        `https://docvault.onrender.com/api/users/${walletAddress}`
       );
       if (response.ok) {
         const { user } = await response.json();
@@ -164,7 +164,7 @@ const Profile: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const url = `http://localhost:5000/api/users`;
+      const url = `https://docvault.onrender.com/api/users`;
       const method = userProfile._id ? "PUT" : "POST";
       const endpoint = userProfile._id ? `${url}/${publicKey.toString()}` : url;
 
