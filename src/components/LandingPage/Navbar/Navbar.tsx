@@ -4,7 +4,6 @@ const Navbar: React.FC = () => {
   return (
     <nav className="navbar">
       <h1 className="logo">DocVault</h1>
-      <button className="login-button">Login</button>
     </nav>
   );
 };

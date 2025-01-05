@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import "./WhyDocVault.css"; // Import the CSS file
+import "./WhyDocVault.css";
 
 const WhyDocVault: React.FC = () => {
   const cardVariants = {
@@ -75,10 +75,9 @@ const WhyDocVault: React.FC = () => {
             variants={cardVariants}
           >
             <div className="icon-wrapper">⚙️</div>
-            <h3 className="card-heading">Decentralized Access</h3>
+            <h3 className="card-heading">Share Your Profile</h3>
             <p className="card-text">
-              Decentralized access to credentials across the globe with full
-              control over who can view and verify them.
+              Share your verified profile or the QR code to anyone with a click
             </p>
           </motion.div>
         </div>
